@@ -28,6 +28,7 @@ Data structures included in `preprocessings.py` are basically programmed to help
 | :---------------------- | :---------------------- | :---------------------- |
 | `identify_missing_values` | *function* | Display of the number and share of missing values |
 | `preprocess_duplicates` | *function* | Deletion of duplicated rows with a message |
+| `filter_data` | *function* | Filters data according to the predetermined ranges |
 | `prepare_sets`| *function* | Data split into sets depending on target name and sets proportions |
 
 The module and the associated functions can be called like so:
@@ -46,11 +47,61 @@ Enhanced data vizualizations tools are located in `vizualizations.py` module. Th
 | `plot_corr_heatmap` | *function* | Plotting correlation matrix heatmap in one go|
 | `plot_class_structure`| *function* | Plotting the shares of different classes for a target vector in classification problems |
 
-The interface is also very easy:
+#### Models performance comparison
+
+Using `plot_model_comparison` function, it is very easy to conveniently showcase how models perform according to some metric. One would just run:
 
 ```python
-from rearden.vizualizations import plot_model_comparison, plot_corr_heatmap
+import seaborn as sns
+
+from rearden.vizualizations import plot_model_comparison
+
+sns.set_theme()
+
+models_performance = [
+    ("Decision Tree", 30.8343),
+    ("Random Forest", 29.3127),
+    ("Catboost", 26.4651),
+    ("Xgboost", 26.7804),
+    ("LightGBM", 26.6084),
+]
+
+plot_model_comparison(
+    results=models_performance,
+    metric_name="RMSE",
+    title_name="Grid search results",
+)
 ```
+
+The result is the following figure:
+
+![Models performance comparison](images/model_comparison.png)
+
+#### Correlation matrix heatmap
+
+It is possible to quickly plot the heatmap of the correlation matrix for the data using `plot_corr_heatmap` function. Here is how we would do that:
+
+```python
+import pandas as pd
+import seaborn as sns
+
+from rearden.vizualizations import plot_corr_heatmap
+
+sns.set_theme()
+
+test_data = pd.read_csv("datasets/test_data.csv")
+
+plot_corr_heatmap(
+    data=test_data,
+    heatmap_coloring="Oranges",
+    annotation=True,
+    lower_triangle=True,
+)
+```
+
+The code above results in the following plot:
+
+![Correlation matrix heatmap](images/corr_mat_heatmap.png)
 
 ### Time-series analysis
 
@@ -64,9 +115,56 @@ Tools for time-series analysis from `time_series.py` are pretty straightforward:
 
 One can, for example, want to firstly generate the data by `FeaturesExtractor`, then look at the graph via `plot_time_series` and then divide the data into sets with `prepare_ts`. Thus, we would run:
 
+#### Time-series plot and its decomposition
+
+`plot_time_series` function provides two additional ways we could plot a time-series:
+
+* Plain time-series
+* Decomposed time-series (trend, seasonality, residual)
+
+Take, for example:
+
 ```python
-from rearden.time_series import FeaturesExtractor, prepare_ts, plot_time_series
+import pandas as pd
+import seaborn as sns
+
+from rearden.time_series import plot_time_series
+
+sns.set_theme()
+
+ts_data_test = pd.read_csv("datasets/ts_data_test.csv", parse_dates=[0], index_col=[0])
+ts_data_test_resampled = ts_data_test.resample("1H").sum()
+
+plot_time_series(
+    data=ts_data_test_resampled,
+    col="num_orders",
+    period_start="2018-03-01",
+    period_end="2018-03-03",
+    ylabel_name="Number of orders",
+    title_name="Time-series plot",
+)
 ```
+
+In this case we plot the evolution of the number of order against time. We obtain the following plot:
+
+![Time-series plot](images/ts_plot.png)
+
+We could also decompose this time series by just adding `kind="decomposed"` to the above function:
+
+```python
+plot_time_series(
+    data=ts_data_test_resampled,
+    col="num_orders",
+    kind="decomposed",
+    period_start="2018-03-01",
+    period_end="2018-03-03",
+    ylabel_name="Number of orders",
+)
+```
+
+The result is as follows:
+
+![Decomposed time-series](images/ts_decomposed.png)
 
 ### Grid search
 
@@ -77,11 +175,37 @@ In `grid_search.py` module, base estimator `RandomizedSearchCV` class from `skle
 | `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute regression metrics and conveniently display tuning process |
 | `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
 
-The interface is as follows:
+#### Confusion matrix
+
+We can use a wrapper `RandomizedHyperoptClassification` for quickly making conclusions about the results of the grid search. For instance, we have managed to split the data into `features_train` and `features_test` as well as `target_train` and `target_test`. We can now run the grid search algorithms and immediately get the plot of the confusion matrix:
 
 ```python
+from sklearn.tree import DecisionTreeClassifier
+
 from rearden.grid_search import RandomizedHyperoptClassification
+
+dtc_model = DecisionTreeClassifier(random_state=12345)
+param_grid_dtc = {"max_depth": np.arange(1, 12)}
+
+dtc_grid_search = RandomizedHyperoptClassification(
+    estimator=dtc_model,
+    param_distributions=param_grid_dtc,
+    train_dataset=(features_train, target_train),
+    eval_dataset=(features_test, target_test),
+    random_state=12345,
+    cv=5,
+    n_iter=5,
+    scoring="f1",
+    n_jobs=None,
+)
+dtc_grid_search.train_crossvalidate()
+
+dtc_grid_search.plot_confusion_matrix(label_names=("label_1", "label_2"))
 ```
+
+Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation:
+
+![Confusion matrix](images/confusion_matrix.png)
 
 ## Installation
 
