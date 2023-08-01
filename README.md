@@ -4,8 +4,9 @@
 
 ----
 
-## Modules
-The package (as of *v0.0.1*) is dedicated to the following areas of Data Science/Machine Learning:
+## Modules and API
+
+The package (as of *v0.0.1*) is designed to aid data scientists in quickly getting insights about the data during the following stages of data analysis/machine learning:
 
 * Data preprocessing
 * Data vizualization
@@ -18,6 +19,69 @@ Hence, the data structures which make up the **Rearden** package have been logic
 * `vizualizations.py`
 * `time_series.py`
 * `grid_search.py`
+
+### Data preprocessing
+
+Data structures included in `preprocessings.py` are basically programmed to help with missing values, duplicates and data preparation for machine learning algorithms (e.g. data split into sets). For instance, currently the following functions are included in the module:
+
+| Name | Kind | Description |
+| :---------------------- | :---------------------- | :---------------------- |
+| `identify_missing_values` | *function* | Display of the number and share of missing values |
+| `preprocess_duplicates` | *function* | Deletion of duplicated rows with a message |
+| `prepare_sets`| *function* | Data split into sets depending on target name and sets proportions |
+
+The module and the associated functions can be called like so:
+
+```python
+from rearden.preprocessings import prepare_sets
+```
+
+### Data vizualization
+
+Enhanced data vizualizations tools are located in `vizualizations.py` module. The functions here are as follows:
+
+| Name | Kind | Description |
+| :---------------------- | :---------------------- | :---------------------- |
+| `plot_model_comparison` | *function* | Vizualization of ML models performances based on their names and scores |
+| `plot_corr_heatmap` | *function* | Plotting correlation matrix heatmap in one go|
+| `plot_class_structure`| *function* | Plotting the shares of different classes for a target vector in classification problems |
+
+The interface is also very easy:
+
+```python
+from rearden.vizualizations import plot_model_comparison, plot_corr_heatmap
+```
+
+### Time-series analysis
+
+Tools for time-series analysis from `time_series.py` are pretty straightforward:
+
+| Name | Kind | Description |
+| :---------------------- | :---------------------- | :---------------------- |
+| `FeaturesExtractor` | *class* | Extraction of time variables from a one-dimensional time-series depending on lag and rolling mean order values |
+| `prepare_ts` | *function* | Data split of a time-series data into sets depending on target name and sets proportions |
+| `plot_time_series` | *function* | Plotting the original time-series or a decomposed one |
+
+One can, for example, want to firstly generate the data by `FeaturesExtractor`, then look at the graph via `plot_time_series` and then divide the data into sets with `prepare_ts`. Thus, we would run:
+
+```python
+from rearden.time_series import FeaturesExtractor, prepare_ts, plot_time_series
+```
+
+### Grid search
+
+In `grid_search.py` module, base estimator `RandomizedSearchCV` class from `sklearn.model_selection` was taken, around which two additional classes were wrapped with some additional methods, custom defaults and other functionality:
+
+| Name | Kind | Description |
+| :---------------------- | :---------------------- | :---------------------- |
+| `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute regression metrics and conveniently display tuning process |
+| `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
+
+The interface is as follows:
+
+```python
+from rearden.grid_search import RandomizedHyperoptClassification
+```
 
 ## Installation
 
