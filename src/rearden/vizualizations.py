@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ def plot_model_comparison(
     yticks_fontsize: int = 12,
     title_fontsize: int = 20,
     ylabel_fontsize: int = 15,
+    save_fig: bool = False,
 ) -> Any:
     """Provides models performance vizualization.
 
@@ -41,6 +43,8 @@ def plot_model_comparison(
             Defaults to 20.
         ylabel_fontsize (int, optional): Size of the Y-label.
             Defaults to 15.
+        save_fig (bool, optional): Boolean indicating saving the plot
+            in a separate directory. Defaults to False.
     """
     # Separating scores from a sequence of tuples passed
     _, scores = zip(*results)
@@ -62,6 +66,14 @@ def plot_model_comparison(
 
     plt.tight_layout()
 
+    if save_fig:
+        dir_name = "images/"
+        if os.path.isdir(dir_name) is False:
+            os.makedirs(dir_name)
+        plt.savefig(dir_name + "model_comparison.png")
+
+    plt.show()
+
 
 def plot_corr_heatmap(
     data: pd.DataFrame,
@@ -71,6 +83,7 @@ def plot_corr_heatmap(
     heatmap_coloring: Optional[Any] = None,
     upper_triangle: bool = False,
     lower_triangle: bool = False,
+    save_fig: bool = False,
 ) -> Any:
     """Plots a heatmap for the correlation matrix.
 
@@ -90,6 +103,8 @@ def plot_corr_heatmap(
             only the upper triangle of the matrix. Defaults to False.
         lower_triangle (bool, optional): Boolean indicator of displaying
             only the lower triangle of the matrix. Defaults to False.
+        save_fig (bool, optional): Boolean indicating saving the figure
+            in a separate directory. Defaults to False.
     """
     if target_var is not None:
         data = pd.concat([data, target_var], axis=1)
@@ -117,6 +132,13 @@ def plot_corr_heatmap(
     corr_heatmap.xaxis.tick_bottom()
     corr_heatmap.yaxis.tick_left()
     corr_heatmap.set(title="Correlation matrix heatmap")
+
+    if save_fig:
+        dir_name = "images/"
+        if os.path.isdir(dir_name) is False:
+            os.makedirs(dir_name)
+        plt.savefig(dir_name + "corr_mat_heatmap.png")
+
     plt.show()
 
 
@@ -125,6 +147,7 @@ def plot_class_structure(
     xlabel_name: str = "xlabel_name",
     ylabel_name: str = "ylabel_name",
     title_name: str = "title_name",
+    save_fig: bool = False,
 ) -> Any:
     """Plots the structure of the target variable.
 
@@ -136,6 +159,8 @@ def plot_class_structure(
             Defaults to "ylabel_name".
         title_name (str, optional): Title of the plot.
             Defaults to "title_name".
+        save_fig (bool, optional): Boolean indicating saving the figure
+            in a separate directory. Defaults to False.
     """
     target_var.value_counts(normalize=True).plot(
         kind="bar",
@@ -144,4 +169,11 @@ def plot_class_structure(
         title=title_name,
     )
     plt.xticks(rotation=0)
+
+    if save_fig:
+        dir_name = "images/"
+        if os.path.isdir(dir_name) is False:
+            os.makedirs(dir_name)
+        plt.savefig(dir_name + "class_structure.png")
+
     plt.show()

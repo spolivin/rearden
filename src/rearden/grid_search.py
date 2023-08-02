@@ -1,3 +1,4 @@
+import os
 from typing import (
     Any,
     Iterable,
@@ -492,7 +493,9 @@ class RandomizedHyperoptClassification(RandomizedSearchCV):
         print(classification_stats)
 
     def plot_confusion_matrix(
-        self, label_names: Optional[Tuple[str]] = None
+        self,
+        label_names: Optional[Tuple[str]] = None,
+        save_fig: bool = False,
     ) -> Any:
         """Plots a confusion matrix."""
         # Verifying if the grid search has been launched
@@ -514,4 +517,11 @@ class RandomizedHyperoptClassification(RandomizedSearchCV):
 
         plt.title(f"Confusion matrix ({model_name})")
         plt.tight_layout()
+
+        if save_fig:
+            dir_name = "images/"
+            if os.path.isdir(dir_name) is False:
+                os.makedirs(dir_name)
+            plt.savefig(dir_name + "confusion_matrix.png")
+
         plt.show()

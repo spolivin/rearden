@@ -1,3 +1,4 @@
+import os
 from typing import Any, Optional, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -149,6 +150,10 @@ def plot_time_series(
     period_start: str,
     period_end: str,
     kind: Optional[str] = None,
+    save_fig: bool = False,
+    figure_dims: Tuple[int] = (8, 10),
+    title_name: str = "title_name",
+    ylabel_name: str = "ylabel_name",
 ) -> Any:
     """Plots time series.
 
@@ -165,19 +170,27 @@ def plot_time_series(
         period_end (str): Time period end.
         kind (Optional[str], optional): Boolean indicator
             of performing time-series decomposition.
+        save_fig (bool, optional): Boolean indicating saving the figure
+            in a separate directory. Defaults to False.
+        figure_dims (Tuple[int], optional): Dimensions of the figure.
+            Defaults to (8, 10).
+        title_name (str, optional): Title of the plot if kind is None.
+            Defaults to "title_name".
+        ylabel_name (str, optional): Name of the ylabel on the plot.
+            Defaults to "ylabel_name".
     """
     # Plotting decomposed time series
     if kind == "decomposed":
         decomposed = seasonal_decompose(data)
 
-        plt.figure(figsize=(8, 10))
+        plt.figure(figsize=figure_dims)
 
         # Trend component
         plt.subplot(311)
         trend_plot = sns.lineplot(
             data=decomposed.trend[period_start:period_end], ax=plt.gca()
         )
-        trend_plot.set(title="Trend", xlabel="Time period", ylabel="Orders")
+        trend_plot.set(title="Trend", xlabel="Time period", ylabel=ylabel_name)
         plt.xticks(rotation=45)
 
         # Seasonal component
@@ -186,7 +199,7 @@ def plot_time_series(
             data=decomposed.seasonal[period_start:period_end], ax=plt.gca()
         )
         seasonal_plot.set(
-            title="Seasonality", xlabel="Time period", ylabel="Orders"
+            title="Seasonality", xlabel="Time period", ylabel=ylabel_name
         )
         plt.xticks(rotation=45)
 
@@ -196,11 +209,18 @@ def plot_time_series(
             data=decomposed.resid[period_start:period_end], ax=plt.gca()
         )
         residual_plot.set(
-            title="Residual", xlabel="Time period", ylabel="Orders"
+            title="Residual", xlabel="Time period", ylabel=ylabel_name
         )
         plt.xticks(rotation=45)
 
         plt.tight_layout()
+
+        if save_fig:
+            dir_name = "images/"
+            if os.path.isdir(dir_name) is False:
+                os.makedirs(dir_name)
+            plt.savefig(dir_name + "ts_decomposed.png")
+
         plt.show()
 
         return
@@ -213,8 +233,15 @@ def plot_time_series(
         ax=plt.gca(),
     )
     full_data_plot.set(
-        title="Taxi orders number", xlabel="Time period", ylabel="Orders"
+        title=title_name, xlabel="Time period", ylabel=ylabel_name
     )
     plt.xticks(rotation=45)
     plt.tight_layout()
+
+    if save_fig:
+        dir_name = "images/"
+        if os.path.isdir(dir_name) is False:
+            os.makedirs(dir_name)
+        plt.savefig(dir_name + "ts_plot.png")
+
     plt.show()
