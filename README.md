@@ -257,7 +257,7 @@ pip install -e .
 ## Automatic code style checks
 
 ### Installation of `pre-commit`
-Before pushing the changed code to the remote Github repository, the code undergoes numerous checks conducted with the help of *pre-commit hooks* specified in [`.pre-commit-config.yaml`](.pre-commit-config.yaml). Before making use of this feature, it is important to first download `pre-commit` package to the system:
+Before pushing the changed code to the remote Github repository, the code undergoes numerous checks conducted with the help of *pre-commit hooks* specified in `.pre-commit-config.yaml`. Before making use of this feature, it is important to first download `pre-commit` package to the system:
 
 ```
 pip install pre-commit
@@ -289,7 +289,7 @@ After running `git commit -m "<Commit message>"` in the terminal, the file to be
 | Black | 23.3.0 |
 | Flake8 | 5.0.0|
 
-> **_NOTE:_** Check [`.pre-commit-config.yaml`](.pre-commit-config.yaml) for more information about the repos and hooks used.
+> **_NOTE:_** Check `.pre-commit-config.yaml` for more information about the repos and hooks used.
 
 It is also possible to download the required dependencies for *pre-commit hooks*:
 
