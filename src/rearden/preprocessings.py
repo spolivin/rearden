@@ -64,6 +64,48 @@ def preprocess_duplicates(data: pd.DataFrame) -> Optional[pd.DataFrame]:
         print("No duplicates found.")
 
 
+def filter_data(
+    data: pd.DataFrame,
+    column: str,
+    lower_val: int,
+    upper_val: int,
+    display_changes: bool = False,
+) -> pd.DataFrame:
+    """
+    Filters out values in a specific column
+    of a DataFrame.
+
+    Args:
+        data (pd.DataFrame): DataFrame with information on
+            automobile vehicles.
+        column (str): DataFrame column by which filtering
+            should be done.
+        lower_val (int): The lowest value of the filtering
+            region.
+        upper_val (int): The highest value of the filtering
+            region.
+        display_changes (bool, optional): Boolean indicating
+            displaying changes made to the data. Defaults to False.
+
+    Returns:
+        pd.DataFrame: Object with its values in a
+        specific column filtered out according to
+        `lower_val` and `upper_val`.
+    """
+    filtering_indices = data[column].between(lower_val, upper_val)
+    data_filtered = data[filtering_indices].reset_index(drop=True)
+    if display_changes:
+        data_size_new = data_filtered.shape[0]
+        data_size_old = data.shape[0]
+        filtered_num = data_size_old - data_size_new
+        filtered_share = filtered_num / data_size_old
+        print(f"DataFrame size (prior to filtering): {data_size_old:,}")
+        print(f"DataFrame size (after filtering): {data_size_new:,}")
+        print(f"Objects filtered out: {filtered_num:,} ({filtered_share:.1%})")
+
+    return data_filtered
+
+
 def prepare_sets(
     data: pd.DataFrame,
     target_name: str,
