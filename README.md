@@ -1,12 +1,12 @@
 # Rearden
 
-**Rearden** is a Python package that provides a faster way of carrying out data science and running machine learning algorithms in a more convenient way. Making use of the functionality of the most common libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data vizualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions in a more convenient and faster way.
+**Rearden** is a Python package that provides a faster and more convenient way of carrying out data science and running machine learning algorithms. Making use of the functionality of the most popular libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data vizualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions about the data in a quicker and clearer manner.
 
 ----
 
 ## Modules and API
 
-The package (as of *v0.0.1*) is designed to aid data scientists in quickly getting insights about the data during the following stages of data analysis/machine learning:
+The package is designed to aid data scientists in quickly getting insights about the data during the following stages of data analysis/machine learning:
 
 * Data preprocessing
 * Data vizualization
@@ -22,7 +22,7 @@ Hence, the data structures which make up the **Rearden** package have been logic
 
 ### Data preprocessing
 
-Data structures included in `preprocessings.py` are basically programmed to help with missing values, duplicates and data preparation for machine learning algorithms (e.g. data split into sets). For instance, currently the following functions are included in the module:
+Functions included in `preprocessings.py` are basically programmed to help with missing and anomalous values, duplicates and data preparation for machine learning algorithms (e.g. data split into sets). For instance, currently the following functions are included in the module:
 
 | Name | Kind | Description |
 | :---------------------- | :---------------------- | :---------------------- |
@@ -75,7 +75,7 @@ plot_model_comparison(
 
 The result is the following figure:
 
-![Models performance comparison](images/model_comparison.png)
+![Models performance comparison](https://github.com/spolivin/rearden/raw/test/images/model_comparison.png)
 
 #### Correlation matrix heatmap
 
@@ -101,7 +101,7 @@ plot_corr_heatmap(
 
 The code above results in the following plot:
 
-![Correlation matrix heatmap](images/corr_mat_heatmap.png)
+![Correlation matrix heatmap](https://github.com/spolivin/rearden/raw/test/images/corr_mat_heatmap.png)
 
 ### Time-series analysis
 
@@ -113,7 +113,7 @@ Tools for time-series analysis from `time_series.py` are pretty straightforward:
 | `prepare_ts` | *function* | Data split of a time-series data into sets depending on target name and sets proportions |
 | `plot_time_series` | *function* | Plotting the original time-series or a decomposed one |
 
-One can, for example, want to firstly generate the data by `FeaturesExtractor`, then look at the graph via `plot_time_series` and then divide the data into sets with `prepare_ts`. Thus, we would run:
+One can, for example, want to firstly generate the data by `FeaturesExtractor`, then look at the graph via `plot_time_series` and then divide the data into sets with `prepare_ts`.
 
 #### Time-series plot and its decomposition
 
@@ -145,9 +145,9 @@ plot_time_series(
 )
 ```
 
-In this case we plot the evolution of the number of order against time. We obtain the following plot:
+In this case we plot the evolution of the number of orders against time. We obtain the following plot:
 
-![Time-series plot](images/ts_plot.png)
+![Time-series plot](https://github.com/spolivin/rearden/raw/test/images/ts_plot.png)
 
 We could also decompose this time series by just adding `kind="decomposed"` to the above function:
 
@@ -164,20 +164,20 @@ plot_time_series(
 
 The result is as follows:
 
-![Decomposed time-series](images/ts_decomposed.png)
+![Decomposed time-series](https://github.com/spolivin/rearden/raw/test/images/ts_decomposed.png)
 
 ### Grid search
 
-In `grid_search.py` module, base estimator `RandomizedSearchCV` class from `sklearn.model_selection` was taken, around which two additional classes were wrapped with some additional methods, custom defaults and other functionality:
+In `grid_search.py` module, `RandomizedSearchCV` base class from `sklearn.model_selection` was used, which has been wrapped with two additional classes with some additional methods, custom defaults and other functionality:
 
 | Name | Kind | Description |
 | :---------------------- | :---------------------- | :---------------------- |
-| `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute regression metrics and conveniently display tuning process |
-| `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with possibilities to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
+| `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute regression metrics and conveniently display tuning process |
+| `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
 
 #### Confusion matrix
 
-We can use a wrapper `RandomizedHyperoptClassification` for quickly making conclusions about the results of the grid search. For instance, we have managed to split the data into `features_train` and `features_test` as well as `target_train` and `target_test`. We can now run the grid search algorithms and immediately get the plot of the confusion matrix:
+We can use `RandomizedHyperoptClassification` wrapper for quickly making conclusions about the results of the grid search. For instance, let's imagine that we have managed to split the data into `features_train` and `features_test` as well as `target_train` and `target_test`. We can now run the grid search algorithms and immediately get the plot of the confusion matrix:
 
 ```python
 from sklearn.tree import DecisionTreeClassifier
@@ -203,9 +203,9 @@ dtc_grid_search.train_crossvalidate()
 dtc_grid_search.plot_confusion_matrix(label_names=("label_1", "label_2"))
 ```
 
-Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation:
+Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation which has been used for making predictions on the test data:
 
-![Confusion matrix](images/confusion_matrix.png)
+![Confusion matrix](https://github.com/spolivin/rearden/raw/test/images/confusion_matrix.png)
 
 ## Installation
 
@@ -232,7 +232,7 @@ The package is available on [PyPI Index](https://pypi.org/project/rearden/) and 
 pip install rearden
 ```
 
-The dependencies are automatically downloaded when executing the above command or can be installed manually using:
+The dependencies are automatically downloaded when executing the above command or can be installed manually using (after cloning the repo):
 
 ```
 pip install -r requirements.txt
@@ -240,7 +240,7 @@ pip install -r requirements.txt
 
 ## Building the package
 
-Thank to the build system requirements and other metadata specified in `pyproject.toml` it is easy to build and install the package. Firstly, clone the repository:
+Thanks to the build system requirements and other metadata specified in `pyproject.toml` it is easy to build and install the package. Firstly, clone the repository:
 
 ```
 git clone https://github.com/spolivin/rearden.git
@@ -257,7 +257,7 @@ pip install -e .
 ## Automatic code style checks
 
 ### Installation of `pre-commit`
-Before pushing the changed code to the remote Github repository, the code undergoes numerous checks conducted with the help of *pre-commit hooks* specified in `.pre-commit-config.yaml`. Before making use of this feature, it is important to first download `pre-commit` package to the system:
+Before pushing the changed code to the remote Github repository, the code undergoes numerous checks conducted with the help of *pre-commit hooks* specified in [`.pre-commit-config.yaml`](.pre-commit-config.yaml). Before making use of this feature, it is important to first download `pre-commit` package to the system:
 
 ```
 pip install pre-commit
@@ -289,9 +289,9 @@ After running `git commit -m "<Commit message>"` in the terminal, the file to be
 | Black | 23.3.0 |
 | Flake8 | 5.0.0|
 
-> **_NOTE:_** Check `.pre-commit-config.yaml` for more information about the repos and hooks used.
+> **_NOTE:_** Check [`.pre-commit-config.yaml`](.pre-commit-config.yaml) for more information about the repos and hooks used.
 
-It is also possible to download the required dependencies for pre-commit hooks:
+It is also possible to download the required dependencies for *pre-commit hooks*:
 
 ```
 pip install -r requirements-dev.txt
