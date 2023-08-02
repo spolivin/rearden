@@ -75,7 +75,7 @@ plot_model_comparison(
 
 The result is the following figure:
 
-![Models performance comparison](https://github.com/spolivin/rearden/raw/test/images/model_comparison.png)
+![Models performance comparison](https://github.com/spolivin/rearden/raw/master/images/model_comparison.png)
 
 #### Correlation matrix heatmap
 
@@ -101,7 +101,7 @@ plot_corr_heatmap(
 
 The code above results in the following plot:
 
-![Correlation matrix heatmap](https://github.com/spolivin/rearden/raw/test/images/corr_mat_heatmap.png)
+![Correlation matrix heatmap](https://github.com/spolivin/rearden/raw/master/images/corr_mat_heatmap.png)
 
 ### Time-series analysis
 
@@ -147,7 +147,7 @@ plot_time_series(
 
 In this case we plot the evolution of the number of orders against time. We obtain the following plot:
 
-![Time-series plot](https://github.com/spolivin/rearden/raw/test/images/ts_plot.png)
+![Time-series plot](https://github.com/spolivin/rearden/raw/master/images/ts_plot.png)
 
 We could also decompose this time series by just adding `kind="decomposed"` to the above function:
 
@@ -164,7 +164,7 @@ plot_time_series(
 
 The result is as follows:
 
-![Decomposed time-series](https://github.com/spolivin/rearden/raw/test/images/ts_decomposed.png)
+![Decomposed time-series](https://github.com/spolivin/rearden/raw/master/images/ts_decomposed.png)
 
 ### Grid search
 
@@ -205,7 +205,7 @@ dtc_grid_search.plot_confusion_matrix(label_names=("label_1", "label_2"))
 
 Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation which has been used for making predictions on the test data:
 
-![Confusion matrix](https://github.com/spolivin/rearden/raw/test/images/confusion_matrix.png)
+![Confusion matrix](https://github.com/spolivin/rearden/raw/master/images/confusion_matrix.png)
 
 ## Installation
 
