@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rearden"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     {name="Sergey Polivin", email="s.polivin@gmail.com"},
 ]
