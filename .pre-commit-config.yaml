@@ -4,32 +4,57 @@ repos:
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
+    -   id: check-ast
     -   id: check-yaml
     -   id: check-toml
     -   id: check-added-large-files
+    -   id: check-docstring-first
     -   id: debug-statements
     -   id: detect-private-key
+
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.10.1
+    hooks:
+    -   id: pyupgrade
+        args: [--py39-plus]
+
 -   repo: https://github.com/pycqa/autoflake
     rev: v2.1.1
     hooks:
     -   id: autoflake
-- repo: https://github.com/PyCQA/isort
-  rev: 5.12.0
-  hooks:
-  - id: isort
+        args: [
+            --in-place,
+            --remove-all-unused-imports,
+            --remove-unused-variables,
+        ]
+
+-   repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+    -   id: isort
+        args: ["--profile", "black", --line-length=79]
+
 -   repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
     -   id: black
+        args: [--line-length=79]
+
 -   repo: https://github.com/pycqa/flake8
-    rev: 5.0.0
+    rev: 6.0.0
     hooks:
     -   id: flake8
         additional_dependencies: [
             darglint==1.8.1,
             flake8-bandit==4.1.1,
-            flake8-isort==6.0.0,
-            flake8-black==0.3.6,
-            flake8-pyproject==1.2.3,
+            flake8-bugbear==23.7.10,
+            flake8-docstrings==1.7.0,
+            flake8-builtins==2.1.0,
+            flake8-eradicate==1.5.0,
         ]
         verbose: true
+
+-   repo: https://github.com/codespell-project/codespell
+    rev: v2.2.4
+    hooks:
+    -   id: codespell
