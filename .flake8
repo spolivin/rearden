@@ -1,0 +1,18 @@
+[flake8]
+docstring-convention = google
+strictness = long
+ignore =
+    # Line length
+    E501,
+    # Under-indented or over-indented lines
+    DAR003,
+    # Mismatch between function and docstring parameter type
+    DAR103,
+    # Wrong import position
+    I001,
+    # Blank lines in imports
+    I004,
+    # Unexpected missing imports
+    I005,
+    # Line breaks before binary operator
+    W503,
