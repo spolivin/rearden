@@ -1,31 +1,81 @@
+"""Visualization tools."""
+
+# Author: Sergey Polivin <s.polivin@gmail.com>
+# License: MIT License
+
 import os
-from typing import Any, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
+# Type aliases for type signatures
+NameScore = tuple[str, float]
+
+
+def save_plot_in_dir(
+    file_name: str,
+    dir_name: str = "images",
+) -> None:
+    """Saves a plot in a directory.
+
+    Function automatically creates a separate directory and
+    saves a plot there. Additionally, it verifies the correctness
+    of a file format and by default saves a plot as png-file if
+    `file_name` is defined without a format.
+
+    Function is to be called before `plt.show()`.
+
+    Args:
+        file_name (str): Name of a file. Can be specified with
+            a file format or without it (converting to png-format
+            by default).
+        dir_name (str, optional): Name of a directory where plot
+            is to be saved. Defaults to "images".
+
+    Raises:
+        OSError: Exception raised if the format of a file is incorrect.
+    """
+    # Creating a separate directory if absent
+    if os.path.isdir(dir_name) is False:
+        os.makedirs(dir_name)
+    # Checking a file name
+    formats_allowed = (".png", ".pdf", ".svg")
+    if not file_name.endswith(formats_allowed):
+        file_name_splitted = file_name.split(".")
+        # Exception raised for unknown format
+        if len(file_name_splitted) != 1:
+            wrong_format = file_name_splitted[-1]
+            raise OSError(f"Format '{wrong_format}' not recognized.")
+        # If file name without format, add ".png" to file name
+        file_name += formats_allowed[0]
+    # Saving a plot
+    plot_path = os.path.join(dir_name, file_name)
+    plt.savefig(plot_path)
+
 
 def plot_model_comparison(
-    results: Sequence[Tuple[str, float]],
+    results: Sequence[NameScore],
     metric_name: str = "metric_name",
     title_name: str = "title_name",
     dot_size: int = 150,
-    figure_dims: Tuple[int] = (15, 7),
+    figure_dims: tuple[int] = (15, 7),
     xticks_fontsize: int = 15,
     yticks_fontsize: int = 12,
     title_fontsize: int = 20,
     ylabel_fontsize: int = 15,
     save_fig: bool = False,
 ) -> Any:
-    """Provides models performance vizualization.
+    """Provides models performance visualization.
 
     Generates a scatterplot with model names and their
     respective metric values for comparison.
 
     Args:
-        results (Sequence[Tuple[str, float]]): Sequence of Tuples with
+        results (Sequence[NameScore]): Sequence of tuples with
             model names and metric values.
         metric_name (str, optional): Name of the metric. Defaults to
             "metric_name".
@@ -33,7 +83,7 @@ def plot_model_comparison(
             "title_name".
         dot_size (int, optional): Size of scatterplot dots.
             Defaults to 150.
-        figure_dims (Tuple[int], optional): Dimensions of the figure.
+        figure_dims (tuple[int], optional): Dimensions of the figure.
             Defaults to (15, 7).
         xticks_fontsize (int, optional): Size of xticks on the plot.
             Defaults to 15.
@@ -49,7 +99,7 @@ def plot_model_comparison(
     # Separating scores from a sequence of tuples passed
     _, scores = zip(*results)
     # Joining model names with scores
-    names_with_scores = ["%s\n%.4f" % (name, loss) for name, loss in results]
+    names_with_scores = [f"{name}\n{loss:.4f}" for name, loss in results]
 
     # Making a plot
     plt.figure(figsize=figure_dims)
@@ -60,24 +110,20 @@ def plot_model_comparison(
         range(len(results)), names_with_scores, fontsize=xticks_fontsize
     )
     plt.yticks(fontsize=yticks_fontsize)
-
-    plt.title(title_name, fontsize=title_fontsize)
     plt.ylabel(metric_name, fontsize=ylabel_fontsize)
+    plt.title(title_name, fontsize=title_fontsize)
 
     plt.tight_layout()
 
+    # Saving the figure in the directory
     if save_fig:
-        dir_name = "images/"
-        if os.path.isdir(dir_name) is False:
-            os.makedirs(dir_name)
-        plt.savefig(dir_name + "model_comparison.png")
+        save_plot_in_dir(file_name="model_comparison.png")
 
     plt.show()
 
 
 def plot_corr_heatmap(
     data: pd.DataFrame,
-    target_var: Optional[pd.Series] = None,
     annotation: bool = False,
     annot_num_size: Optional[int] = None,
     heatmap_coloring: Optional[Any] = None,
@@ -90,9 +136,6 @@ def plot_corr_heatmap(
     Args:
         data (pd.DataFrame): DataFrame for which a heatmap needs
             to be plotted.
-        target_var (Optional[pd.Series], optional): Vector with a
-            target variable if needed to include it on the heatmap.
-            Defaults to None.
         annotation (bool, optional): Boolean indicator of displaying
             numbers in the heatmap. Defaults to False.
         annot_num_size (Optional[int], optional): Size of the
@@ -106,22 +149,22 @@ def plot_corr_heatmap(
         save_fig (bool, optional): Boolean indicating saving the figure
             in a separate directory. Defaults to False.
     """
-    if target_var is not None:
-        data = pd.concat([data, target_var], axis=1)
-
+    # Computing the correlation matrix
     corr_matrix = data.corr()
 
-    # Showing upper/lower triangle of a matrix
+    # Showing upper triangle of a matrix
     if upper_triangle:
         mask = np.zeros_like(corr_matrix)
         mask[np.tril_indices_from(mask)] = True
+    # Showing lower triangle of a matrix
     elif lower_triangle:
         mask = np.zeros_like(corr_matrix)
         mask[np.triu_indices_from(mask)] = True
+    # Showing the entire matrix
     else:
         mask = None
 
-    # Plotting a matrix
+    # Plotting a heatmap of the matrix
     corr_heatmap = sns.heatmap(
         corr_matrix,
         annot=annotation,
@@ -133,11 +176,11 @@ def plot_corr_heatmap(
     corr_heatmap.yaxis.tick_left()
     corr_heatmap.set(title="Correlation matrix heatmap")
 
+    plt.tight_layout()
+
+    # Saving the figure in the directory
     if save_fig:
-        dir_name = "images/"
-        if os.path.isdir(dir_name) is False:
-            os.makedirs(dir_name)
-        plt.savefig(dir_name + "corr_mat_heatmap.png")
+        save_plot_in_dir(file_name="corr_heatmap.png")
 
     plt.show()
 
@@ -162,6 +205,7 @@ def plot_class_structure(
         save_fig (bool, optional): Boolean indicating saving the figure
             in a separate directory. Defaults to False.
     """
+    # Plotting the shares of classes in the target variable
     target_var.value_counts(normalize=True).plot(
         kind="bar",
         xlabel=xlabel_name,
@@ -170,10 +214,10 @@ def plot_class_structure(
     )
     plt.xticks(rotation=0)
 
+    plt.tight_layout()
+
+    # Saving the figure in a directory
     if save_fig:
-        dir_name = "images/"
-        if os.path.isdir(dir_name) is False:
-            os.makedirs(dir_name)
-        plt.savefig(dir_name + "class_structure.png")
+        save_plot_in_dir(file_name="class_structure.png")
 
     plt.show()
