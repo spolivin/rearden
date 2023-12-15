@@ -1,6 +1,6 @@
 # Rearden
 
-**Rearden** is a Python package that provides a faster and more convenient way of carrying out data science and getting insights from machine learning algorithms. Making use of the functionality of the most popular libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data visualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions about the data in a quicker and clearer manner.
+**Rearden** is a Python package designed for usage inside Jupyter Notebooks that provides a faster and more convenient way of carrying out data science and getting insights from machine learning algorithms. Making use of the functionality of the most popular libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data visualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions about the data in a quicker and clearer manner.
 
 ----
 
@@ -287,6 +287,30 @@ The result is as follows:
 
 ![Decomposed time-series](https://raw.githubusercontent.com/spolivin/rearden/master/images/ts_decomposed.png)
 
+#### Creating time features
+
+Given the one-dimensional time-series data, it is actually possible to retrieve time variables from it: quarter, month, day or month. Additionally, we can also add lags as well as rolling mean of different orders. It can be done using `TimeSeriesFeaturesExtractor`:
+
+```python
+from rearden.time_series import TimeSeriesFeaturesExtractor as TSFE
+
+features_extractor = TSFE(col_name="num_orders")
+features_extractor.get_params() # {'col_name': 'num_orders', 'max_lag': 1, 'rolling_mean_order': 1}
+```
+
+Hence, we can choose the column with the time-series as well as which maximum order of lag and rolling mean we want to use when generating new features. For instance, if we decide to use the default parameter values, we can easily configure the class and then use it on the data:
+
+```python
+import pandas as pd
+
+ts_data_test = pd.read_csv("datasets/ts_data_test.csv", parse_dates=[0], index_col=[0])
+ts_data_test = ts_data_test.resample("1H").sum()
+
+ts_dataset = features_extractor.fit_transform(ts_data_test)
+```
+
+The above code will add the columns will add quarter, month, day and hour variables to the DataFrame as well as a column with rolling mean and the lag columns according to `max_lag` and `rolling_mean_order` attribute values.
+
 ### Grid search
 
 In `grid_search.py` module, `RandomizedSearchCV` base class from `sklearn.model_selection` was used, which has been wrapped with two additional classes with some additional methods, custom defaults and other functionality:
@@ -295,7 +319,7 @@ In `grid_search.py` module, `RandomizedSearchCV` base class from `sklearn.model_
 | :---------------------- | :---------------------- | :---------------------- |
 | `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute regression metrics and conveniently display tuning process |
 | `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
-| `SimpleHyperparamsOptimizer` | *class* | Custom class that implements a simple grid search algorithm without cross-validation. |
+| `SimpleHyperparamsOptimizer` | *class* | Custom class that implements a simple grid search algorithm without cross-validation |
 
 The module also includes one custom `SimpleHyperparamsOptimier` class written from scratch that enables quickly running a grid search when, for instance, we need to optimize the hyperparameters of the model on one distinct validation set.
 
@@ -360,6 +384,46 @@ Thanks to the additional `eval_dataset` attribute, the resulting plot is already
 It is also possible to compute all classification metrics using `classif_stats_` attribute that just outputs the result of applying `sklearn.metrics.classification_report` to data contained in `eval_dataset` attribute.
 
 Other functionality of the wrappers for classification and regression can be consulted in the `grid_search.py` module.
+
+#### Custom grid search without CV
+
+A simple grid search algorithm has been implemented in `SimpleHyperparamsOptimizer` class. The usage is similar to `sklearn` grid search but without crossvalidation:
+
+```python
+from sklearn.metrics import mean_squared_error
+
+from rearden.grid_search import SimpleHyperparamsOptimizer as SHO
+
+decision_tree_model = DecisionTreeRegressor(random_state=12345)
+decision_tree_params_grid = {"max_depth": np.arange(1, 5)}
+
+sho_search = SHO(
+    model=decision_tree_model,
+    param_grid=decision_tree_params_grid,
+    train_dataset=(features_train, target_train),
+    eval_dataset=(features_test, target_test),
+    scoring_function=mean_squared_error,
+    display_search=True,
+    higher_better=False,
+)
+sho_search.train()
+```
+
+Since we set `display_search=True`, we will see the following grid search progress information:
+
+```
+{'max_depth': 1}: mean_squared_error=(train=1087.6845, valid=5115.3861)
+{'max_depth': 2}: mean_squared_error=(train=915.5997, valid=4915.6283)
+{'max_depth': 3}: mean_squared_error=(train=772.2890, valid=3686.3358)
+{'max_depth': 4}: mean_squared_error=(train=696.7085, valid=3352.8290)
+```
+
+We can use the class attribute after calling `train` to obtain the best model settings and results:
+
+```python
+sho_search.best_config_ # {'max_depth': 4}
+sho_search.best_result_ # 3352.8289830072163
+```
 
 ## Installation
 
