@@ -1,104 +1,40 @@
-import os
-from typing import (
-    Any,
-    Iterable,
-    Literal,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+"""Grid search wrappers."""
+
+# Author: Sergey Polivin <s.polivin@gmail.com>
+# License: MIT License
+
+import itertools
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any, Callable, Literal, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.base import BaseEstimator
-from sklearn.exceptions import NotFittedError
+from sklearn.base import BaseEstimator, clone
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     classification_report,
     confusion_matrix,
     mean_absolute_error,
     mean_squared_error,
-    roc_auc_score,
 )
 from sklearn.model_selection import RandomizedSearchCV
 
-from .decorators import exec_timer
+from .decorators import check_est_fit_by_attr, exec_timer
+from .preprocessings import FeaturesTarget, RandomStateInstance
+from .vizualizations import save_plot_in_dir
 
-# Specifying customs types
-RandomStateInstance = np.random.mtrand.RandomState
+HyperGrid = Union[Sequence[Mapping], Mapping]
+SklearnMetric = Callable[..., float]
 
 
-class RandomizedHyperoptRegression(RandomizedSearchCV):
-    """
-    Wrapper for RandomizedSearchCV with custom defaults
-    and additional functionality for running regressions.
-    """
-
-    def __init__(
-        self,
-        estimator: BaseEstimator,
-        param_distributions: Union[Sequence[Mapping], Mapping],
-        train_dataset: Tuple[Any, Any],
-        eval_dataset: Tuple[Any, Any],
-        cv: Union[Iterable, int] = 2,
-        random_state: Union[RandomStateInstance, int] = 12345,
-        scoring: str = "neg_root_mean_squared_error",
-        n_iter: int = 5,
-        n_jobs: Optional[int] = None,
-        return_train_score: bool = True,
-    ) -> None:
-        """Initializes an instance.
-
-        Args:
-            estimator (BaseEstimator): Sklearn model, Gradient Boosting model or
-                Pipeline object.
-            param_distributions (Union[Sequence[Mapping], Mapping]): Grid of
-                hyperparameter names and their values to be varied.
-            train_dataset (Tuple[Any, Any]): Tuple of training features and
-                training target-vector.
-            eval_dataset (Tuple[Any, Any]): Tuple of testing features and
-                testing target-vector.
-            cv (Union[Iterable, int], optional): Crossvalidator represented
-                as an iterator or an integer. Defaults to 2.
-            random_state (Union[RandomStateInstance, int], optional): Random seed
-                represented as either RandomState instance or an integer.
-                Defaults to 12345.
-            scoring (str, optional): Scoring metric.
-                Defaults to "neg_root_mean_squared_error".
-            n_iter (int, optional): Number of hyperparameter combinations
-                to consider. Defaults to 5.
-            n_jobs (Optional[int], optional): Parallelization of computations.
-                Defaults to None.
-            return_train_score (bool, optional): Boolean indicating returning
-                metric values scores computed on training set. Defaults to True.
-        """
-        super().__init__(
-            estimator=estimator,
-            param_distributions=param_distributions,
-            cv=cv,
-            random_state=random_state,
-            scoring=scoring,
-            n_iter=n_iter,
-            n_jobs=n_jobs,
-            return_train_score=return_train_score,
-        )
-        self.train_dataset = train_dataset
-        self.eval_dataset = eval_dataset
-        self.train_features, self.train_target = self.train_dataset
-        self.eval_features, self.eval_target = self.eval_dataset
+class OutputFixer:
+    """Class for methods used for adjusting grid search object output."""
 
     @property
     def _model_name(self):
-        """Retrieves last estimator name.
-
-        The function which ends up behaving as a class property
-        returns the name of the last estimator in the pipeline or
-        the plain model name used.
-        """
+        """Retrieves last estimator name."""
         try:
             pipeline_steps = self.estimator.named_steps
         except AttributeError:
@@ -113,13 +49,7 @@ class RandomizedHyperoptRegression(RandomizedSearchCV):
 
     @property
     def _relevant_columns(self):
-        """Chooses only relevant columns.
-
-        In this case relevant columns in the DataFrame obtained from
-        `display_tuning_process()` function involve varied hyperparameters,
-        test/train metric values obtained during grid search. Function
-        behaves as a class property.
-        """
+        """Chooses only relevant columns."""
         # Creating the DataFrame from `cv_results_` attribute
         df = pd.DataFrame(self.cv_results_)
 
@@ -130,11 +60,7 @@ class RandomizedHyperoptRegression(RandomizedSearchCV):
         return relevant_columns
 
     def _fix_col_names(self, df):
-        """Fixes columns names in the DataFrame.
-
-        Adjusts column names in the DataFrame returned
-        by `display_tuning_process()` function.
-        """
+        """Fixes columns names in the DataFrame."""
         try:
             pipeline_steps = self.estimator.named_steps
         except AttributeError:
@@ -149,38 +75,22 @@ class RandomizedHyperoptRegression(RandomizedSearchCV):
 
         return df
 
-    def _verify_est_fitted(self):
-        """Checks if the estimator has been fit."""
-        if not hasattr(self, "cv_results_"):
-            not_fitted_error_msg = (
-                f"The {type(self).__name__} instance has not been fitted yet. "
-                "Call 'train_crossvalidate' before using this method."
-            )
-            raise NotFittedError(not_fitted_error_msg)
+
+class GridSearchLauncher:
+    """Class containing grid search features."""
 
     @exec_timer
     def train_crossvalidate(self) -> Any:
-        """Launches grid search algorithm.
-
-        Using a custom `exec_timer` decorator,
-        displaying total grid search time (in
-        seconds).
-        """
-
-        self.fit(self.train_features, self.train_target)
+        """Launches grid search algorithm."""
+        self.fit(self.train_features_, self.train_target_)
 
         model_name = self._model_name
 
         print(f"Grid search for {model_name} completed.")
 
+    @check_est_fit_by_attr(attr="cv_results_", func_hint="train_crossvalidate")
     def display_tuning_process(self) -> pd.DataFrame:
-        """
-        Displaying the results of grid search. Additionally, displays the
-        best combination of hyperparameters and scoring metric values.
-        """
-        # Verifying if the grid search has been launched
-        self._verify_est_fitted()
-
+        """Displays the results of grid search as a DataFrame."""
         # Creating the initial DataFrame from `cv_results_` attribute
         cv_results_df = pd.DataFrame(self.cv_results_)
 
@@ -190,6 +100,146 @@ class RandomizedHyperoptRegression(RandomizedSearchCV):
 
         # Fixing column names in the DataFrame
         cv_results_df = self._fix_col_names(cv_results_df)
+
+        return cv_results_df
+
+    @property
+    def best_iter_(self):
+        """Displays the best iteration as a Series."""
+        # Computing the table with results
+        df = self.display_tuning_process()
+
+        # Selecting the best index
+        best_iteration = self.best_index_
+
+        # Choosing the best row
+        cv_results_best_iter = df.iloc[best_iteration]
+
+        # Retrieving model name (last estimator name)
+        model_name = self._model_name
+
+        # Renaming the pd.Series
+        cv_results_best_iter = cv_results_best_iter.rename(model_name)
+
+        return cv_results_best_iter
+
+
+class GridSearchMixin(OutputFixer, GridSearchLauncher):
+    """Mixin class for combining methods from parent classes."""
+
+
+class RandomizedHyperoptClassification(RandomizedSearchCV, GridSearchMixin):
+    """Wrapper for RandomizedSearchCV for classification."""
+
+    def __init__(
+        self,
+        estimator: BaseEstimator,
+        param_distributions: HyperGrid,
+        train_dataset: FeaturesTarget,
+        eval_dataset: FeaturesTarget,
+        cv: Union[Iterable, int] = 2,
+        random_state: Union[RandomStateInstance, int, None] = None,
+        scoring: str = "f1",
+        n_iter: int = 5,
+        n_jobs: Optional[int] = None,
+        return_train_score: bool = True,
+    ) -> None:
+        """Initializes an instance."""
+        super().__init__(
+            estimator,
+            param_distributions,
+            cv=cv,
+            random_state=random_state,
+            scoring=scoring,
+            n_iter=n_iter,
+            n_jobs=n_jobs,
+            return_train_score=return_train_score,
+        )
+        self.train_dataset = train_dataset
+        self.eval_dataset = eval_dataset
+        self.train_features_, self.train_target_ = self.train_dataset
+        self.eval_features_, self.eval_target_ = self.eval_dataset
+        self.eval_predictions_ = None
+
+    @property
+    @check_est_fit_by_attr(attr="cv_results_", func_hint="train_crossvalidate")
+    def classif_stats_(self):
+        """Performs computation of classification metrics."""
+        # Computing predictions on the test set
+        self.eval_predictions_ = self.predict(self.eval_features_)
+        # Print out a summary of all classification metrics if metric=None
+        classification_stats = classification_report(
+            y_true=self.eval_target_,
+            y_pred=self.eval_predictions_,
+        )
+        print(classification_stats)
+
+    @check_est_fit_by_attr(attr="cv_results_", func_hint="train_crossvalidate")
+    def plot_confusion_matrix(
+        self, labels: tuple = None, save_fig: bool = False
+    ) -> Any:
+        """Plots a confusion matrix."""
+        # Computing predictions on the test set
+        self.eval_predictions_ = self.predict(self.eval_features_)
+
+        # Plotting confusion matrix
+        sns.reset_defaults()
+        cm = confusion_matrix(
+            y_true=self.eval_target_, y_pred=self.eval_predictions_
+        )
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm, display_labels=labels
+        )
+        disp.plot(cmap=plt.cm.Blues)
+
+        # Selecting last estimator name
+        model_name = self._model_name
+
+        plt.title(f"Confusion matrix ({model_name})")
+        plt.tight_layout()
+
+        if save_fig:
+            save_plot_in_dir(file_name="confusion_matrix.png")
+
+        plt.show()
+
+
+class RandomizedHyperoptRegression(RandomizedSearchCV, GridSearchMixin):
+    """Wrapper for RandomizedSearchCV for regressions."""
+
+    def __init__(
+        self,
+        estimator: BaseEstimator,
+        param_distributions: Union[Sequence[Mapping], Mapping],
+        train_dataset: FeaturesTarget,
+        eval_dataset: FeaturesTarget,
+        cv: Union[Iterable, int] = 2,
+        random_state: Union[RandomStateInstance, int, None] = None,
+        scoring: str = "neg_root_mean_squared_error",
+        n_iter: int = 5,
+        n_jobs: Optional[int] = None,
+        return_train_score: bool = True,
+    ) -> None:
+        """Initializes an instance."""
+        super().__init__(
+            estimator,
+            param_distributions,
+            cv=cv,
+            random_state=random_state,
+            scoring=scoring,
+            n_iter=n_iter,
+            n_jobs=n_jobs,
+            return_train_score=return_train_score,
+        )
+        self.train_dataset = train_dataset
+        self.eval_dataset = eval_dataset
+        self.train_features_, self.train_target_ = self.train_dataset
+        self.eval_features_, self.eval_target_ = self.eval_dataset
+        self.eval_predictions_ = None
+
+    def display_tuning_process(self) -> pd.DataFrame:
+        """Displays the results of grid search."""
+        cv_results_df = super().display_tuning_process()
 
         # Adjusting the sign in case of regression task
         cv_results_df["mean_test_score"] = -cv_results_df["mean_test_score"]
@@ -201,327 +251,134 @@ class RandomizedHyperoptRegression(RandomizedSearchCV):
 
         return cv_results_df
 
-    @property
-    def best_iter(self):
-        """Displays the best iteration.
-
-        Based on the DataFrame from `display_tuning_process()`,
-        retrieves the best iteration (DataFrame row) and prints
-        it out. Behaves as a property.
-        """
-        # Computing the table with results
-        df = self.display_tuning_process()
-
-        # Selecting the best index
-        best_iteration = self.best_index_
-
-        # Choosing the best row
-        cv_results_best_iter = df.iloc[best_iteration]
-
-        # Retrieving model name (last estimator name)
-        model_name = self._model_name
-
-        # Renaming the pd.Series
-        cv_results_best_iter = cv_results_best_iter.rename(model_name)
-
-        return cv_results_best_iter
-
+    @check_est_fit_by_attr(attr="cv_results_", func_hint="train_crossvalidate")
     def compute_regression_stats(
         self, metric: Literal["rmse", "mse", "mae"]
     ) -> float:
         """Computes key regression metrics."""
-        # Verifying if the grid search has been launched
-        self._verify_est_fitted()
         # Proceed if exception has not been raised
-        self.eval_predictions = self.predict(self.eval_features)
+        self.eval_predictions_ = self.predict(self.eval_features_)
         if metric == "rmse":
             rmse = mean_squared_error(
-                self.eval_target, self.eval_predictions, squared=False
+                y_true=self.eval_target_,
+                y_pred=self.eval_predictions_,
+                squared=False,
             )
             return rmse
-        elif metric == "mse":
+        if metric == "mse":
             mse = mean_squared_error(
-                self.eval_target, self.eval_predictions, squared=True
+                y_true=self.eval_target_,
+                y_pred=self.eval_predictions_,
+                squared=True,
             )
             return mse
-        elif metric == "mae":
-            mae = mean_absolute_error(self.eval_target, self.eval_predictions)
+        if metric == "mae":
+            mae = mean_absolute_error(
+                y_true=self.eval_target_, y_pred=self.eval_predictions_
+            )
             return mae
-        else:
-            raise ValueError("Incorrect metric name specified")
+        raise ValueError("Incorrect metric name specified")
 
 
-class RandomizedHyperoptClassification(RandomizedSearchCV):
-    """
-    Wrapper for RandomizedSearchCV with custom defaults
-    and additional functionality for solving classification
-    problems.
-    """
+class SimpleHyperparamsOptimizer:
+    """Class for implementing a simple grid search algorithm."""
 
     def __init__(
         self,
-        estimator: BaseEstimator,
-        param_distributions: Union[Sequence[Mapping], Mapping],
-        train_dataset: Tuple[Any, Any],
-        eval_dataset: Tuple[Any, Any],
-        cv: Union[Iterable, int] = 2,
-        random_state: Union[RandomStateInstance, int] = 12345,
-        scoring: str = "f1",
-        n_iter: int = 5,
-        n_jobs: Optional[int] = None,
-        return_train_score: bool = True,
+        model: BaseEstimator,
+        param_grid: HyperGrid,
+        train_dataset: FeaturesTarget,
+        eval_dataset: FeaturesTarget,
+        scoring_function: SklearnMetric,
+        display_search: bool = False,
+        higher_better: bool = True,
     ) -> None:
-        """Initializes an instance.
-
-        Args:
-            estimator (BaseEstimator): Sklearn model, Gradient Boosting model or
-                Pipeline object.
-            param_distributions (Union[Sequence[Mapping], Mapping]): Grid of
-                hyperparameter names and their values to be varied.
-            train_dataset (Tuple[Any, Any]): Tuple of training features and
-                training target-vector.
-            eval_dataset (Tuple[Any, Any]): Tuple of testing features and
-                testing target-vector.
-            cv (Union[Iterable, int], optional): Crossvalidator represented
-                as an iterator or an integer. Defaults to 2.
-            random_state (Union[RandomStateInstance, int], optional): Random seed
-                represented as either RandomState instance or an integer.
-                Defaults to 12345.
-            scoring (str, optional): Scoring metric.
-                Defaults to "f1".
-            n_iter (int, optional): Number of hyperparameter combinations
-                to consider. Defaults to 5.
-            n_jobs (Optional[int], optional): Parallelization of computations.
-                Defaults to None.
-            return_train_score (bool, optional): Boolean indicating returning
-                metric values scores computed on training set. Defaults to True.
-        """
-        super().__init__(
-            estimator=estimator,
-            param_distributions=param_distributions,
-            cv=cv,
-            random_state=random_state,
-            scoring=scoring,
-            n_iter=n_iter,
-            n_jobs=n_jobs,
-            return_train_score=return_train_score,
-        )
+        """Constructor for SimpleHyperparamsOptimizer class."""
+        self.model = model
+        self.param_grid = param_grid
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
-        self.train_features, self.train_target = self.train_dataset
-        self.eval_features, self.eval_target = self.eval_dataset
+        self.scoring_function = scoring_function
+        self.display_search = display_search
+        self.higher_better = higher_better
 
-    @property
-    def _model_name(self):
-        """Retrieves last estimator name.
+        self.train_features_, self.train_target_ = self.train_dataset
+        self.eval_features_, self.eval_target_ = self.eval_dataset
 
-        The function which ends up behaving as a class property
-        returns the name of the last estimator in the pipeline or
-        the plain model name used.
-        """
-        try:
-            pipeline_steps = self.estimator.named_steps
-        except AttributeError:
-            model_name = type(self.estimator).__name__
-        else:
-            pipeline_steps_names = list(pipeline_steps.keys())
-            last_estimator_name = pipeline_steps_names[-1]
-            last_estimator = self.estimator[last_estimator_name]
-            model_name = type(last_estimator).__name__
+    def _retrieve_combinations(self) -> list[dict[str, Any]]:
+        """Retrieves all possible hyperparameter values combinations."""
+        keys, values = zip(*self.param_grid.items())
+        config_list = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-        return model_name
+        return config_list
 
-    @property
-    def _relevant_columns(self):
-        """Chooses only relevant columns.
+    def _log_progress(
+        self,
+        params: dict[str, Any],
+        metric_train: float,
+        metric_valid: float,
+    ) -> None:
+        """Logs the hyperparameter search process."""
+        # Retrieving the name of the scoring function
+        score_func_name = self.scoring_function.__name__
+        # Printing the grid search step
+        print(
+            f"{params}: {score_func_name}=(train={metric_train:.4f}, valid={metric_valid:.4f})"
+        )
 
-        In this case relevant columns in the DataFrame obtained from
-        `display_tuning_process()` function involve varied hyperparameters,
-        test/train metric values obtained during grid search. Function
-        behaves as a class property.
-        """
-        df = pd.DataFrame(self.cv_results_)
+    def _evaluate(self, model: BaseEstimator) -> tuple[float, float]:
+        """Computes training and validation scores."""
+        # Computing predictions for training and validation sets
+        predictions_train = model.predict(self.train_features_)
+        predictions_valid = model.predict(self.eval_features_)
+        # Computing metric for training and validation sets
+        metric_score_train = self.scoring_function(
+            self.train_target_, predictions_train
+        )
+        metric_score_valid = self.scoring_function(
+            self.eval_target_, predictions_valid
+        )
 
-        # Choosing specific columns
-        columns_to_display = df.columns.str.startswith(("param_", "mean_t"))
-        relevant_columns = df.columns[columns_to_display]
+        return metric_score_train, metric_score_valid
 
-        return relevant_columns
+    def train(self) -> None:
+        """Launches the grid search algorithm."""
+        # Setting initial values
+        best_model = None
+        best_result = 0 if self.higher_better else np.Inf
+        # Retrieving a list of all possible hyperparameter combinations
+        config_list = self._retrieve_combinations()
 
-    def _fix_col_names(self, df):
-        """Fixes columns names in the DataFrame.
-
-        Adjusts column names in the DataFrame returned
-        by `display_tuning_process()` function.
-        """
-        try:
-            pipeline_steps = self.estimator.named_steps
-        except AttributeError:
-            df.columns = df.columns.str.replace("param_", "")
-        else:
-            pipeline_steps_names = list(pipeline_steps.keys())
-            last_estimator_name = pipeline_steps_names[-1]
-            col_name = "param_" + last_estimator_name + "__"
-            df.columns = df.columns.str.replace(col_name, "")
-        finally:
-            df = df.round(4)
-
-        return df
-
-    def _verify_est_fitted(self):
-        """Checks if the estimator has been fit."""
-        if not hasattr(self, "cv_results_"):
-            not_fitted_error_msg = (
-                f"The {type(self).__name__} instance has not been fitted yet. "
-                "Call 'train_crossvalidate' before using this method."
+        # Launching grid search
+        for config in config_list:
+            # Reinitializing the model
+            model = clone(self.model)
+            model.set_params(**config)
+            # Training the model
+            model.fit(self.train_features_, self.train_target_)
+            # Computing training and validation scores
+            metric_score_train, metric_score_valid = self._evaluate(
+                model=model
             )
-            raise NotFittedError(not_fitted_error_msg)
-
-    @exec_timer
-    def train_crossvalidate(self) -> Any:
-        """Launches grid search algorithm.
-
-        Using a custom `exec_timer` decorator,
-        displaying total grid search time (in
-        seconds).
-        """
-
-        self.fit(self.train_features, self.train_target)
-
-        model_name = self._model_name
-
-        print(f"Grid search for {model_name} completed.")
-
-    def display_tuning_process(self) -> pd.DataFrame:
-        """
-        Displaying the results of grid search. Additionally, displays the
-        best combination of hyperparameters and scoring metric values.
-        """
-        # Verifying if the grid search has been launched
-        self._verify_est_fitted()
-
-        # Creating the initial DataFrame from `cv_results_` attribute
-        cv_results_df = pd.DataFrame(self.cv_results_)
-
-        # Selecting the relevant columns
-        relevant_columns = self._relevant_columns
-        cv_results_df = cv_results_df[relevant_columns]
-
-        # Fixing column names in the DataFrame
-        cv_results_df = self._fix_col_names(cv_results_df)
-
-        return cv_results_df
-
-    @property
-    def best_iter(self):
-        """Displays the best iteration.
-
-        Based on the DataFrame from `display_tuning_process()`,
-        retrieves the best iteration (DataFrame row) and prints
-        it out. Behaves as a property.
-        """
-        # Computing the table with results
-        df = self.display_tuning_process()
-
-        # Selecting the best index
-        best_iteration = self.best_index_
-
-        # Choosing the best row
-        cv_results_best_iter = df.iloc[best_iteration]
-
-        # Retrieving model name (last estimator name)
-        model_name = self._model_name
-
-        # Renaming the pd.Series
-        cv_results_best_iter = cv_results_best_iter.rename(model_name)
-
-        return cv_results_best_iter
-
-    def compute_classification_stats(
-        self,
-        target_names: Optional[Tuple[str]] = None,
-        metric: Optional[str] = None,
-    ) -> Optional[float]:
-        """Performs computation of classification metrics.
-
-        Args:
-            target_names (Tuple[str], optional): Names of classes.
-                Defaults to None.
-            metric (Optional[str], optional): Name of metric.
-                Defaults to None.
-
-        Returns:
-            Optional[float]: Floating point number, value of a
-            specific classification metric or a classification
-            metrics table.
-        """
-        # Verifying if the grid search has been launched
-        self._verify_est_fitted()
-
-        # Computing predictions on the test set
-        self.eval_predictions = self.predict(self.eval_features)
-
-        # Return the value of a particular metric
-        NoneType = type(None)
-        if not isinstance(metric, NoneType):
-            # Adding ROC-AUC to metric values to be returned
-            if metric == "roc-auc":
-                roc_auc_value = roc_auc_score(
-                    self.eval_target,
-                    self.predict_proba(self.eval_features)[:, 1],
+            # Logging the grid search process
+            if self.display_search:
+                self._log_progress(
+                    params=config,
+                    metric_train=metric_score_train,
+                    metric_valid=metric_score_valid,
                 )
-
-                return roc_auc_value
-            # Return some other value of metrics contained in classification_report
+            # Making a decision about the best model
+            if self.higher_better:
+                if metric_score_valid > best_result:
+                    best_model = model
+                    best_config = config
+                    best_result = metric_score_valid
             else:
-                classification_stats = classification_report(
-                    self.eval_target,
-                    self.eval_predictions,
-                    target_names=target_names,
-                    output_dict=True,
-                )
-
-                classes_list = list(classification_stats.keys())
-                last_class = classes_list[1]
-                metric_score = classification_stats[last_class][metric]
-
-                return metric_score
-        # Print out a summary of all classification metrics if metric=None
-        classification_stats = classification_report(
-            self.eval_target, self.eval_predictions, target_names=target_names
-        )
-        print(classification_stats)
-
-    def plot_confusion_matrix(
-        self,
-        label_names: Optional[Tuple[str]] = None,
-        save_fig: bool = False,
-    ) -> Any:
-        """Plots a confusion matrix."""
-        # Verifying if the grid search has been launched
-        self._verify_est_fitted()
-
-        # Computing predictions on the test set
-        self.eval_predictions = self.predict(self.eval_features)
-
-        # Plotting confusion matrix
-        sns.reset_defaults()
-        cm = confusion_matrix(self.eval_target, self.eval_predictions)
-        disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm, display_labels=label_names
-        )
-        disp.plot(cmap=plt.cm.Blues)
-
-        # Selecting last estimator name
-        model_name = self._model_name
-
-        plt.title(f"Confusion matrix ({model_name})")
-        plt.tight_layout()
-
-        if save_fig:
-            dir_name = "images/"
-            if os.path.isdir(dir_name) is False:
-                os.makedirs(dir_name)
-            plt.savefig(dir_name + "confusion_matrix.png")
-
-        plt.show()
+                if metric_score_valid < best_result:
+                    best_model = model
+                    best_config = config
+                    best_result = metric_score_valid
+        # Saving the information about the best model in attributes
+        self.best_model_ = best_model
+        self.best_config_ = best_config
+        self.best_result_ = best_result
