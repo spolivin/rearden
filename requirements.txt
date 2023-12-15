@@ -1,6 +1,6 @@
 # --------- linters --------- #
 darglint >= 1.8.1
-flake8 >= 5.0.0
+flake8 >= 6.0.0
 flake8-bandit >= 4.1.1
 flake8-bugbear >= 23.7.10
 flake8-docstrings >= 1.7.0
