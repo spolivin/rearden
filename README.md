@@ -1,6 +1,6 @@
 # Rearden
 
-**Rearden** is a Python package that provides a faster and more convenient way of carrying out data science and running machine learning algorithms. Making use of the functionality of the most popular libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data vizualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions about the data in a quicker and clearer manner.
+**Rearden** is a Python package that provides a faster and more convenient way of carrying out data science and getting insights from machine learning algorithms. Making use of the functionality of the most popular libraries for data analysis (`pandas`, `numpy`, `statsmodels`), data visualization (`matplotlib`, `seaborn`) and grid search (`scikit-learn`), it enables reaching the conclusions about the data in a quicker and clearer manner.
 
 ----
 
@@ -9,41 +9,125 @@
 The package is designed to aid data scientists in quickly getting insights about the data during the following stages of data analysis/machine learning:
 
 * Data preprocessing
-* Data vizualization
+* Data visualization
 * Time-series analysis
 * Grid search
 
-Hence, the data structures which make up the **Rearden** package have been logically divided into Python modules based off of the above respective parts:
+Hence, the data structures which make up the **Rearden** package have been logically divided into the following Python modules (module `decorators.py` serves as an auxiliary file supplying the decorators for some data structures includes in the other modules):
 
 * `preprocessings.py`
 * `vizualizations.py`
 * `time_series.py`
 * `grid_search.py`
+* `metrics.py`
 
 ### Data preprocessing
 
-Functions included in `preprocessings.py` are basically programmed to help with missing and anomalous values, duplicates and data preparation for machine learning algorithms (e.g. data split into sets). For instance, currently the following functions are included in the module:
+Functions included in `preprocessings.py` are basically programmed to help with missing values and data preparation for machine learning algorithms (*e.g.* data split into sets). For instance, currently the following functions and classes are included in the module:
 
 | Name | Kind | Description |
 | :---------------------- | :---------------------- | :---------------------- |
+| `DataSplitter`| *class* | Data split into sets depending on target name and sets proportions |
 | `identify_missing_values` | *function* | Display of the number and share of missing values |
-| `preprocess_duplicates` | *function* | Deletion of duplicated rows with a message |
-| `filter_data` | *function* | Filters data according to the predetermined ranges |
-| `prepare_sets`| *function* | Data split into sets depending on target name and sets proportions |
 
 The module and the associated functions can be called like so:
 
 ```python
-from rearden.preprocessings import prepare_sets
+from rearden.preprocessings import DataSplitter
 ```
 
-### Data vizualization
+#### Splitting data
+
+For instance, if we have a pandas DataFrame which includes both features and target, we can easily separate them into distinct entities and at the same time split them into training/test sets:
+
+```python
+from rearden.preprocessings import DataSplitter
+
+splitter = DataSplitter(set_shares=(0.75, 0.25), random_seed=1)
+
+(
+features_train,
+target_train,
+features_test,
+target_test
+) = splitter.split_data(data=some_dataframe, target="target_name")
+```
+
+Likewise, if we need to split the DataFrame into training/validation/test sets:
+
+```python
+splitter = DataSplitter(set_shares=(0.6, 0.2, 0.2), random_seed=1)
+
+(
+features_train,
+target_train,
+features_valid,
+target_valid,
+features_test,
+target_test
+) = splitter.split_data(data=some_dataframe, target="target_name")
+```
+
+Afterwards, it is possible to check the splits via a special `subset_info_` attribute:
+
+```python
+splitter.subset_info_
+```
+
+We will get the following table:
+
+|  | obs_num | set_shares |
+| :---------------------- | ----------------------: | ----------------------: |
+| **train** | 5,454 | 0.6 |
+| **valid** | 1,818 | 0.2 |
+| **test** | 1,819 | 0.2 |
+
+In case we have intended to split the data only into training and test sets, the DataFrame contained in `subset_info_` attribute becomes as follows:
+
+|  | obs_num | set_shares |
+| :---------------------- | ----------------------: | ----------------------: |
+| **train** | 6,818 | 0.75 |
+| **test** | 2,273 | 0.25 |
+
+All data subsets obtained as a result of a DataFrame split are contained in the according attributes of the class and can be used at any time:
+
+```python
+features_train = splitter.features_train_
+features_valid = splitter.features_valid_
+features_test = splitter.features_test_
+
+target_train = splitter.target_train_
+target_valid = splitter.target_valid_
+target_test = splitter.target_test_
+```
+
+Thanks to decorators provided in `decorators.py`, the potential errors which can be made during the instantiation of the class object or during the data split can be caught faster. For instance, `check_proportions` decorator from `DataSplitterDecorators` class will check the correctness of set shares specification in `set_shares` attribute when defining an object. Decorator `check_dimensions` will make sure that we specify two or three values in `set_shares` attribute. Lastly, `check_split` will catch the user's mistake of accessing `subset_info_` attribute before data split has occurred.
+
+#### Missing values calculation
+
+Using a useful `identify_missing_values` function, it is possible to quickly calculate the number and share of missing values in a DataFrame. Furthermore, it also outputs the data type of a column where missing values have been found. For instance:
+
+```python
+identify_missing_values(data=some_dataframe)
+```
+
+The resulting DataFrame looks as follows:
+
+|  | dtype | missing_count | missing_fraction |
+| :---------------------- | ----------------------: | ----------------------: | ----------------------: |
+| **col1** | float64 | 400 | 0.8444 |
+| **col3** | object | 19 | 0.4512 |
+| **col19** | object | 4 | 0.0313 |
+
+In the case that no missing values have been detected, the function will not return anything.
+
+### Data visualization
 
 Enhanced data vizualizations tools are located in `vizualizations.py` module. The functions here are as follows:
 
 | Name | Kind | Description |
 | :---------------------- | :---------------------- | :---------------------- |
-| `plot_model_comparison` | *function* | Vizualization of ML models performances based on their names and scores |
+| `plot_model_comparison` | *function* | Visualization of ML models performances based on their names and scores |
 | `plot_corr_heatmap` | *function* | Plotting correlation matrix heatmap in one go|
 | `plot_class_structure`| *function* | Plotting the shares of different classes for a target vector in classification problems |
 
@@ -70,12 +154,13 @@ plot_model_comparison(
     results=models_performance,
     metric_name="RMSE",
     title_name="Grid search results",
+    save_fig=True,
 )
 ```
 
-The result is the following figure:
+The result is the following figure which is automatically saved in the newly created `images` directory upon specifying `save_fig=True` (setting this parameter to `True` automatically activates `rearden.vizualizations.save_plot_in_dir` function that creates `images/` directory and saves the image there):
 
-![Models performance comparison](https://github.com/spolivin/rearden/raw/master/images/model_comparison.png)
+![Models performance comparison](images/model_comparison.png)
 
 #### Correlation matrix heatmap
 
@@ -93,15 +178,36 @@ test_data = pd.read_csv("datasets/test_data.csv")
 
 plot_corr_heatmap(
     data=test_data,
-    heatmap_coloring="Oranges",
+    heatmap_coloring="Blues",
     annotation=True,
     lower_triangle=True,
+    save_fig=True,
 )
 ```
 
 The code above results in the following plot:
 
-![Correlation matrix heatmap](https://github.com/spolivin/rearden/raw/master/images/corr_mat_heatmap.png)
+![Correlation matrix heatmap](images/corr_heatmap.png)
+
+#### Plotting the class structure
+
+The function `plot_class_structure` enables quickly making inquiries into the balancedness/unbalancedness of the target variable:
+
+```python
+from rearden.vizualizations import plot_class_structure
+
+plot_class_structure(
+    target_var=target_train,
+    xlabel_name="Classes",
+    ylabel_name="Share",
+    title_name="Target variable structure",
+    save_fig=True,
+)
+```
+
+The resulting plot looks, for instance, as follows:
+
+![Class structure](images/class_structure.png)
 
 ### Time-series analysis
 
@@ -109,62 +215,77 @@ Tools for time-series analysis from `time_series.py` are pretty straightforward:
 
 | Name | Kind | Description |
 | :---------------------- | :---------------------- | :---------------------- |
-| `FeaturesExtractor` | *class* | Extraction of time variables from a one-dimensional time-series depending on lag and rolling mean order values |
-| `prepare_ts` | *function* | Data split of a time-series data into sets depending on target name and sets proportions |
-| `plot_time_series` | *function* | Plotting the original time-series or a decomposed one |
+| `TimeSeriesFeaturesExtractor` | *class* | Extraction of time variables from a one-dimensional time-series depending on lag and rolling mean order values |
+| `TimeSeriesSplitter` | *class* | Time-series data split into sets with the same functionality as `DataSplitter` |
+| `TimeSeriesPlotter` | *class* | Plotting the original time-series or a decomposed one |
 
-One can, for example, want to firstly generate the data by `FeaturesExtractor`, then look at the graph via `plot_time_series` and then divide the data into sets with `prepare_ts`.
+
+One can, for example, want to firstly look at the graph via `TimeSeriesPlotter`, recover time variables from time-series by `TimeSeriesFeaturesExtractor` and then divide the data into sets with `TimeSeriesSplitter`.
 
 #### Time-series plot and its decomposition
 
-`plot_time_series` function provides two additional ways we could plot a time-series:
+`TimeSeriesPlotter` class provides two additional ways we could plot a time-series:
 
-* Plain time-series
-* Decomposed time-series (trend, seasonality, residual)
+* Plain time-series (`plot_time_series` method)
+* Decomposed time-series: trend, seasonality, residual (`plot_decomposed` method)
 
-Take, for example:
+For example, we can plot the resampled time-series data (with 1 hour periodicity by default):
 
 ```python
 import pandas as pd
 import seaborn as sns
 
-from rearden.time_series import plot_time_series
+from rearden.time_series import TimeSeriesPlotter
 
 sns.set_theme()
 
 ts_data_test = pd.read_csv("datasets/ts_data_test.csv", parse_dates=[0], index_col=[0])
-ts_data_test_resampled = ts_data_test.resample("1H").sum()
 
-plot_time_series(
-    data=ts_data_test_resampled,
-    col="num_orders",
-    period_start="2018-03-01",
-    period_end="2018-03-03",
+ts_plotter = TimeSeriesPlotter()
+
+plotter.plot_time_series(
+    data=taxi_data,
+    resample=True,
+    period=("2018-03-01", "2018-03-03"),
     ylabel_name="Number of orders",
     title_name="Time-series plot",
+    save_fig=True,
 )
 ```
 
 In this case we plot the evolution of the number of orders against time. We obtain the following plot:
 
-![Time-series plot](https://github.com/spolivin/rearden/raw/master/images/ts_plot.png)
+![Time-series plot](images/ts_plot.png)
 
-We could also decompose this time series by just adding `kind="decomposed"` to the above function:
+If we want to plot the time-series for the same period of time without resampling, then we just set `resample=False`:
 
 ```python
-plot_time_series(
-    data=ts_data_test_resampled,
-    col="num_orders",
-    kind="decomposed",
-    period_start="2018-03-01",
-    period_end="2018-03-03",
+plotter.plot_time_series(
+    data=taxi_data,
+    resample=False,
+    period=("2018-03-01", "2018-03-03"),
     ylabel_name="Number of orders",
+    title_name="Time-series plot",
+    save_fig=True,
+)
+```
+
+![Time-series plot with no resample](images/ts_plot_resample_false.png)
+
+We could also decompose this time series which in this case should be resampled in any case (applied by default):
+
+```python
+plotter.plot_decomposed(
+    data=taxi_data,
+    period=("2018-03-01", "2018-03-03"),
+    ylabel_name="Number of orders",
+    save_fig=True,
 )
 ```
 
 The result is as follows:
 
-![Decomposed time-series](https://github.com/spolivin/rearden/raw/master/images/ts_decomposed.png)
+![Decomposed time-series](images/ts_decomposed.png)
 
 ### Grid search
 
@@ -174,20 +295,23 @@ In `grid_search.py` module, `RandomizedSearchCV` base class from `sklearn.model_
 | :---------------------- | :---------------------- | :---------------------- |
 | `RandomizedHyperoptRegression` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute regression metrics and conveniently display tuning process |
 | `RandomizedHyperoptClassification` | *class* | Wrapper for `RandomizedSearchCV` with functionality to quickly compute classification metrics, conveniently display tuning process and fastly plot confusion matrix |
+| `SimpleHyperparamsOptimizer` | *class* | Custom class that implements a simple grid search algorithm without cross-validation. |
 
-#### Confusion matrix
+The module also includes one custom `SimpleHyperparamsOptimier` class written from scratch that enables quickly running a grid search when, for instance, we need to optimize the hyperparameters of the model on one distinct validation set.
 
-We can use `RandomizedHyperoptClassification` wrapper for quickly making conclusions about the results of the grid search. For instance, let's imagine that we have managed to split the data into `features_train` and `features_test` as well as `target_train` and `target_test`. We can now run the grid search algorithms and immediately get the plot of the confusion matrix:
+#### Hyperparameter tuning
+
+We can use `RandomizedHyperoptClassification` or `RandomizedHyperoptRegression` wrappers for quickly making conclusions about the results of the grid search. For instance, let's imagine that we have managed to split the data into `features_train` and `features_test` as well as `target_train` and `target_test`. We can now run the grid search algorithms and immediately get the plot of the confusion matrix:
 
 ```python
 from sklearn.tree import DecisionTreeClassifier
 
-from rearden.grid_search import RandomizedHyperoptClassification
+from rearden.grid_search import RandomizedHyperoptClassification as RHC
 
 dtc_model = DecisionTreeClassifier(random_state=12345)
-param_grid_dtc = {"max_depth": np.arange(1, 12)}
+param_grid_dtc = {"max_depth": np.arange(2, 12)}
 
-dtc_grid_search = RandomizedHyperoptClassification(
+dtc_grid_search = RHC(
     estimator=dtc_model,
     param_distributions=param_grid_dtc,
     train_dataset=(features_train, target_train),
@@ -197,15 +321,45 @@ dtc_grid_search = RandomizedHyperoptClassification(
     n_iter=5,
     scoring="f1",
     n_jobs=None,
+    return_train_score=True,
 )
 dtc_grid_search.train_crossvalidate()
-
-dtc_grid_search.plot_confusion_matrix(label_names=("label_1", "label_2"))
 ```
+
+After the completing grid search, the method `train_crossvalidate` will notify us of the completion:
+
+```
+Grid search for DecisionTreeClassifier completed.
+Time elapsed: 0.6 s
+```
+
+#### Tuning process display
+
+We can then get a convenient representation of the tuning progress by using `display_tuning_process` method:
+
+```python
+dtc_grid_search.display_tuning_process()
+```
+
+|  | max_depth | mean_test_score | mean_train_score |
+| :---------------------- | ----------------------: | ----------------------: | ----------------------: |
+| **0** | 2 | 0.4970 | 0.5065 |
+| **1** | 9 | 0.5448 | 0.7347 |
+| **2** | 5 | 0.5059 | 0.5379 |
+| **3** | 11 | 0.5402 | 0.8257 |
+| **4** | 8 | 0.5432 | 0.6869 |
+
+Since this class inherits from `sklearn.model_selection.RandomizedSearchCV`, it also has access to usual `best_estimator_`, `best_score_`, `best_params_` attributes.
+
+#### Metrics computation
 
 Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation which has been used for making predictions on the test data:
 
-![Confusion matrix](https://github.com/spolivin/rearden/raw/master/images/confusion_matrix.png)
+![Confusion matrix](images/confusion_matrix.png)
+
+It is also possible to compute all classification metrics using `classif_stats_` attribute that just outputs the result of applying `sklearn.metrics.classification_report` to data contained in `eval_dataset` attribute.
+
+Other functionality of the wrappers for classification and regression can be consulted in the `grid_search.py` module.
 
 ## Installation
 
@@ -222,7 +376,7 @@ Thanks to the additional `eval_dataset` attribute, the resulting plot is already
 | Seaborn| >= 0.11.1|
 | Statsmodels| >= 0.13.2|
 
-> **_NOTE:_**  The package currently requires Python 3.7 or higher.
+> **_NOTE:_**  The package currently requires Python 3.9 or higher.
 
 ### Installation using `pip`
 
@@ -263,10 +417,10 @@ Before pushing the changed code to the remote Github repository, the code underg
 pip install pre-commit
 ```
 
-or if `rearden` package has already been installed:
+or if `rearden` package has already been installed (`pre-commit` is installed together with the linters):
 
 ```
-pip install rearden[precommit]
+pip install rearden[linters]
 ```
 
 Afterwards, in the git-repository run the following command for installation:
@@ -284,23 +438,11 @@ After running `git commit -m "<Commit message>"` in the terminal, the file to be
 | Hooks | Version |
 | :---------------------- | :---------------------- |
 | Pre-commit-hooks | 4.3.0 |
+| Pyupgrade | 3.10.1 |
 | Autoflake | 2.1.1 |
 | Isort | 5.12.0 |
 | Black | 23.3.0 |
-| Flake8 | 5.0.0|
+| Flake8 | 6.0.0|
+| Codespell | 2.2.4|
 
 > **_NOTE:_** Check `.pre-commit-config.yaml` for more information about the repos and hooks used.
-
-It is also possible to download the required dependencies for *pre-commit hooks*:
-
-```
-pip install -r requirements-dev.txt
-```
-
-or:
-
-```
-pip install rearden[formatters]
-
-pip install rearden[linters]
-```
