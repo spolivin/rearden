@@ -1,5 +1,9 @@
-import os
-from typing import Any, Optional, Tuple, Union
+"""Time-series analysis tools."""
+
+# Author: Sergey Polivin <s.polivin@gmail.com>
+# License: MIT License
+
+from typing import Any, Optional, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,91 +13,134 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split
 from statsmodels.tsa.seasonal import seasonal_decompose
 
-# Specifying custom types
-TrainValidTest = Tuple[
-    pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series
-]
-TrainTest = Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]
+from .decorators import DataSplitterDecorators
+from .preprocessings import (
+    DataSplitter,
+    RandomStateInstance,
+    TrainTest,
+    TrainValidTest,
+)
+from .vizualizations import save_plot_in_dir
 
 
-class FeaturesExtractor(BaseEstimator, TransformerMixin):
-    """Implements feature engineering for time series DataFrame."""
+class TimeSeriesFeaturesExtractor(BaseEstimator, TransformerMixin):
+    """Implements feature engineering for time series DataFrame.
+
+    Attributes:
+        col_name: Name of the column storing time-series.
+        max_lag: Maximum lag to consider when generating features.
+        rolling_mean_order: Rolling mean order to consider when generating features.
+    """
 
     def __init__(
         self,
+        col_name: str,
         max_lag: int = 1,
         rolling_mean_order: int = 1,
     ) -> None:
-        """Constructor for FeaturesExtractor class."""
+        """Constructor for TimeSeriesFeaturesExtractor class."""
+        self.col_name = col_name
         self.max_lag = max_lag
         self.rolling_mean_order = rolling_mean_order
 
-    def fit(self, x: pd.DataFrame, y=None) -> None:
+    def fit(self, X: pd.DataFrame, y=None) -> None:
         """Returns the object itself."""
         return self
 
-    def transform(self, x: pd.DataFrame, y=None) -> pd.DataFrame:
-        """
-        Extracts features from DateTimeIndex in accordance
-        with arguments passed to `__init__`.
-        """
-        X = x.copy()
+    def _compute_lags(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Computes time lags and adds features to data."""
+        for lag in range(1, self.max_lag + 1):
+            data[f"lag_{lag}"] = data[self.col_name].shift(lag)
+
+        return data
+
+    def _compute_rolling_mean(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Computes rolling mean and adds a feature to data."""
+        data[f"rolling_mean_{self.rolling_mean_order}"] = (
+            data[self.col_name].shift().rolling(self.rolling_mean_order).mean()
+        )
+
+        return data
+
+    def transform(self, X: pd.DataFrame, y=None) -> pd.DataFrame:
+        """Adding new features to data."""
         # Adding time variables
         X["quarter"] = X.index.quarter
         X["month"] = X.index.month
         X["day"] = X.index.day
         X["hour"] = X.index.hour
+
         # Adding lags
-        for lag in range(1, self.max_lag + 1):
-            X["lag_{}".format(lag)] = X["num_orders"].shift(lag)
+        X = self._compute_lags(data=X)
+
         # Adding moving average
-        X["rolling_mean_{}".format(self.rolling_mean_order)] = (
-            X["num_orders"].shift().rolling(self.rolling_mean_order).mean()
-        )
+        X = self._compute_rolling_mean(data=X)
 
         return X
 
 
-def prepare_ts(
-    data: pd.DataFrame,
-    target_name: str,
-    train_share: float,
-    test_share: float,
-    valid_share: Optional[float] = None,
-) -> Union[TrainValidTest, TrainTest]:
-    """Conducts time series data split into sets.
+class TimeSeriesSplitter(DataSplitter):
+    """Class implementing DataFrame split into sets for time-series.
 
-    Depending on the value passed to `valid_share`,
-    splits the data either into training, validation
-    and test sets or into training and test sets.
-
-    Args:
-        data (pd.DataFrame): DataFrame which needs to be
-            split into sets.
-        target_name (str): Name of the target variable.
-        train_share (float): Share of the training set.
-        test_share (float): Share of the test set.
-        valid_share (Optional[float], optional): Share of
-            the validation set. Defaults to None.
-
-    Returns:
-        Union[TrainValidTest, TrainTest]: Tuple of training,
-        validation and test sets or Tuple of training and
-        test sets.
-
-    Raises:
-        ValueError: Exception raised in case proportions
-        of sets are inconsistent.
+    Attributes:
+        set_shares: Tuple of shares in accordance with which data is to be split.
+        random_seed: Number referring to random seed.
     """
-    # Data split into train/validation/test
-    if valid_share is not None:
-        # Checking consistency of set shares
-        if np.sum([train_share, valid_share, test_share]) != 1.0:
-            raise ValueError("Incorrect sets proportions specified")
 
-        split_1 = 1 - train_share
-        split_2 = test_share / np.sum([valid_share, test_share])
+    def __init__(
+        self,
+        set_shares: tuple[int],
+        random_seed: Union[int, RandomStateInstance, None] = None,
+    ) -> None:
+        """Initializes instance based on data passed and split settings.
 
+        Args:
+            set_shares (tuple[int]): Includes a sequence of required set shares.
+                Can refer to either `(train_share, valid_share, test_share)`
+                or `(train_share, test_share)`.
+            random_seed (Union[int, RandomStateInstance, None], optional): Stores a random seed.
+                Defaults to None.
+        """
+        super().__init__(set_shares=set_shares, random_seed=random_seed)
+
+    @DataSplitterDecorators.check_proportions(attr="set_shares")
+    def _df_train_test_split_by_target(self, data, target) -> TrainTest:
+        """Splits the features DataFrame and target vector into training and test sets."""
+        # Recovering share of test set
+        _, test_share = self.set_shares
+
+        # Splitting the data into training/test sets
+        training_set, test_set = train_test_split(
+            data, shuffle=False, test_size=test_share
+        )
+
+        # Dropping nans due to lags
+        training_set = training_set.dropna()
+
+        # Separating features from target
+        features_train, target_train = self._df_sep_by_target(
+            data=training_set, target=target
+        )
+
+        features_test, target_test = self._df_sep_by_target(
+            data=test_set, target=target
+        )
+
+        return features_train, target_train, features_test, target_test
+
+    @DataSplitterDecorators.check_proportions(attr="set_shares")
+    def _df_train_valid_test_split_by_target(
+        self, data, target
+    ) -> TrainValidTest:
+        """Splits the features matrix and target vector into training, validation and test sets."""
+        # Recovering shares of sets
+        _, valid_share, test_share = self.set_shares
+
+        # Determining cutoffs for splits
+        split_1 = np.sum([valid_share, test_share])
+        split_2 = test_share / split_1
+
+        # Splitting the data into training/validation/test sets
         training_set, valid_test_set = train_test_split(
             data, shuffle=False, test_size=split_1
         )
@@ -104,14 +151,18 @@ def prepare_ts(
         # Dropping nans due to lags
         training_set = training_set.dropna()
 
-        features_train = training_set.drop([target_name], axis=1)
-        target_train = training_set[target_name]
+        # Separating features from target
+        features_train, target_train = self._df_sep_by_target(
+            data=training_set, target=target
+        )
 
-        features_valid = valid_set.drop([target_name], axis=1)
-        target_valid = valid_set[target_name]
+        features_valid, target_valid = self._df_sep_by_target(
+            data=valid_set, target=target
+        )
 
-        features_test = test_set.drop([target_name], axis=1)
-        target_test = test_set[target_name]
+        features_test, target_test = self._df_sep_by_target(
+            data=test_set, target=target
+        )
 
         return (
             features_train,
@@ -122,82 +173,71 @@ def prepare_ts(
             target_test,
         )
 
-    # Data split into training/test
-    if np.sum([train_share, test_share]) != 1.0:
-        raise ValueError("Incorrect sets proportions specified")
 
-    # Data split
-    training_set, test_set = train_test_split(
-        data, shuffle=False, test_size=test_share
-    )
+class TimeSeriesPlotter:
+    """Class for plotting time-series data."""
 
-    # Dropping nans due to lags
-    training_set = training_set.dropna()
+    def __init__(self) -> None:
+        """Constructor for TimeSeriesPlotter class."""
 
-    # Separating features from target
-    features_train = training_set.drop([target_name], axis=1)
-    target_train = training_set[target_name]
+    def _check_monotonicity(self, data: pd.DataFrame) -> None:
+        """Time-series data monotonicity checker."""
+        if data.index.is_monotonic_increasing is False:
+            raise RuntimeError("Inconsistent dates")
 
-    features_test = test_set.drop([target_name], axis=1)
-    target_test = test_set[target_name]
+    def resample_data(
+        self, data: pd.DataFrame, periodicity: str = "1H"
+    ) -> pd.DataFrame:
+        """Resamples data according to periodicity."""
+        # Checking the consistency of dates in data
+        self._check_monotonicity(data=data)
 
-    return features_train, target_train, features_test, target_test
+        # Resampling data
+        data_resampled = data.resample(periodicity).sum()
 
+        return data_resampled
 
-def plot_time_series(
-    data: pd.DataFrame,
-    col: str,
-    period_start: str,
-    period_end: str,
-    kind: Optional[str] = None,
-    save_fig: bool = False,
-    figure_dims: Tuple[int] = (8, 10),
-    title_name: str = "title_name",
-    ylabel_name: str = "ylabel_name",
-) -> Any:
-    """Plots time series.
+    def plot_decomposed(
+        self,
+        data: pd.DataFrame,
+        periodicity: str = "1H",
+        period: Optional[tuple[str, str]] = None,
+        figure_dims: Optional[tuple[int, int]] = (8, 10),
+        ylabel_name: str = "ylabel_name",
+        save_fig: bool = False,
+    ) -> Any:
+        """Plots a decomposed time-series."""
+        self._check_monotonicity(data=data)
 
-    When specifying kind="decomposed", conducts seasonal decomposition
-    of the data and outputs graphs of trend, seasonal and residual
-    components.
+        # Checking monotonicity
+        data_resampled = self.resample_data(data=data, periodicity=periodicity)
 
-    Args:
-        data (pd.DataFrame): DataFrame with information
-            about taxi orders.
-        col (str): DataFrame column containing
-            data about taxi orders.
-        period_start (str): Time period start.
-        period_end (str): Time period end.
-        kind (Optional[str], optional): Boolean indicator
-            of performing time-series decomposition.
-        save_fig (bool, optional): Boolean indicating saving the figure
-            in a separate directory. Defaults to False.
-        figure_dims (Tuple[int], optional): Dimensions of the figure.
-            Defaults to (8, 10).
-        title_name (str, optional): Title of the plot if kind is None.
-            Defaults to "title_name".
-        ylabel_name (str, optional): Name of the ylabel on the plot.
-            Defaults to "ylabel_name".
-    """
-    # Plotting decomposed time series
-    if kind == "decomposed":
-        decomposed = seasonal_decompose(data)
+        # Decomposing a time-series
+        decomposed = seasonal_decompose(data_resampled)
 
+        # Making a plot
         plt.figure(figsize=figure_dims)
+
+        if period is not None:
+            period_start, period_end = period
+
+            trend = decomposed.trend[period_start:period_end]
+            seasonal = decomposed.seasonal[period_start:period_end]
+            resid = decomposed.resid[period_start:period_end]
+        else:
+            trend = decomposed.trend
+            seasonal = decomposed.seasonal
+            resid = decomposed.resid
 
         # Trend component
         plt.subplot(311)
-        trend_plot = sns.lineplot(
-            data=decomposed.trend[period_start:period_end], ax=plt.gca()
-        )
+        trend_plot = sns.lineplot(data=trend, ax=plt.gca())
         trend_plot.set(title="Trend", xlabel="Time period", ylabel=ylabel_name)
         plt.xticks(rotation=45)
 
         # Seasonal component
         plt.subplot(312)
-        seasonal_plot = sns.lineplot(
-            data=decomposed.seasonal[period_start:period_end], ax=plt.gca()
-        )
+        seasonal_plot = sns.lineplot(data=seasonal, ax=plt.gca())
         seasonal_plot.set(
             title="Seasonality", xlabel="Time period", ylabel=ylabel_name
         )
@@ -205,9 +245,7 @@ def plot_time_series(
 
         # Residual component
         plt.subplot(313)
-        residual_plot = sns.lineplot(
-            data=decomposed.resid[period_start:period_end], ax=plt.gca()
-        )
+        residual_plot = sns.lineplot(data=resid, ax=plt.gca())
         residual_plot.set(
             title="Residual", xlabel="Time period", ylabel=ylabel_name
         )
@@ -215,33 +253,50 @@ def plot_time_series(
 
         plt.tight_layout()
 
+        # Saving the figure
         if save_fig:
-            dir_name = "images/"
-            if os.path.isdir(dir_name) is False:
-                os.makedirs(dir_name)
-            plt.savefig(dir_name + "ts_decomposed.png")
+            save_plot_in_dir(file_name="ts_decomposed.png")
 
         plt.show()
 
-        return
+    def plot_time_series(
+        self,
+        data: pd.DataFrame,
+        periodicity: str = "1H",
+        resample: bool = True,
+        period: Optional[tuple[str, str]] = None,
+        figure_dims: Optional[tuple[int, int]] = None,
+        title_name: str = "title_name",
+        ylabel_name: str = "ylabel_name",
+        save_fig: bool = False,
+    ) -> Any:
+        """Plots a time-series."""
+        self._check_monotonicity(data=data)
 
-    # Plotting time series
-    full_data_plot = sns.lineplot(
-        data=data[period_start:period_end],
-        y=col,
-        x=data[period_start:period_end].index,
-        ax=plt.gca(),
-    )
-    full_data_plot.set(
-        title=title_name, xlabel="Time period", ylabel=ylabel_name
-    )
-    plt.xticks(rotation=45)
-    plt.tight_layout()
+        data_resampled = data
 
-    if save_fig:
-        dir_name = "images/"
-        if os.path.isdir(dir_name) is False:
-            os.makedirs(dir_name)
-        plt.savefig(dir_name + "ts_plot.png")
+        if resample:
+            data_resampled = self.resample_data(
+                data=data, periodicity=periodicity
+            )
 
-    plt.show()
+        plt.figure(figsize=figure_dims)
+
+        data_to_plot = data_resampled
+
+        if period is not None:
+            period_start, period_end = period
+            data_to_plot = data_resampled[period_start:period_end]
+
+        # Plotting time series
+        full_data_plot = sns.lineplot(data=data_to_plot, ax=plt.gca())
+        full_data_plot.set(
+            title=title_name, xlabel="Time period", ylabel=ylabel_name
+        )
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+
+        if save_fig:
+            save_plot_in_dir(file_name="ts_plot.png")
+
+        plt.show()
