@@ -309,7 +309,7 @@ ts_data_test = ts_data_test.resample("1H").sum()
 ts_dataset = features_extractor.fit_transform(ts_data_test)
 ```
 
-The above code will add the columns will add quarter, month, day and hour variables to the DataFrame as well as a column with rolling mean and the lag columns according to `max_lag` and `rolling_mean_order` attribute values.
+The above code will add quarter, month, day and hour variables to the DataFrame as well as a column with rolling mean and the lag columns according to `max_lag` and `rolling_mean_order` attribute values.
 
 ### Grid search
 
