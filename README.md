@@ -160,7 +160,7 @@ plot_model_comparison(
 
 The result is the following figure which is automatically saved in the newly created `images` directory upon specifying `save_fig=True` (setting this parameter to `True` automatically activates `rearden.vizualizations.save_plot_in_dir` function that creates `images/` directory and saves the image there):
 
-![Models performance comparison](images/model_comparison.png)
+![Models performance comparison](https://raw.githubusercontent.com/spolivin/rearden/master/images/model_comparison.png)
 
 #### Correlation matrix heatmap
 
@@ -187,7 +187,7 @@ plot_corr_heatmap(
 
 The code above results in the following plot:
 
-![Correlation matrix heatmap](images/corr_heatmap.png)
+![Correlation matrix heatmap](https://raw.githubusercontent.com/spolivin/rearden/master/images/corr_heatmap.png)
 
 #### Plotting the class structure
 
@@ -207,7 +207,7 @@ plot_class_structure(
 
 The resulting plot looks, for instance, as follows:
 
-![Class structure](images/class_structure.png)
+![Class structure](https://raw.githubusercontent.com/spolivin/rearden/master/images/class_structure.png)
 
 ### Time-series analysis
 
@@ -255,7 +255,7 @@ plotter.plot_time_series(
 
 In this case we plot the evolution of the number of orders against time. We obtain the following plot:
 
-![Time-series plot](images/ts_plot.png)
+![Time-series plot](https://raw.githubusercontent.com/spolivin/rearden/master/images/ts_plot.png)
 
 If we want to plot the time-series for the same period of time without resampling, then we just set `resample=False`:
 
@@ -270,7 +270,7 @@ plotter.plot_time_series(
 )
 ```
 
-![Time-series plot with no resample](images/ts_plot_resample_false.png)
+![Time-series plot with no resample](https://raw.githubusercontent.com/spolivin/rearden/master/images/ts_plot_resample_false.png)
 
 We could also decompose this time series which in this case should be resampled in any case (applied by default):
 
@@ -285,7 +285,7 @@ plotter.plot_decomposed(
 
 The result is as follows:
 
-![Decomposed time-series](images/ts_decomposed.png)
+![Decomposed time-series](https://raw.githubusercontent.com/spolivin/rearden/master/images/ts_decomposed.png)
 
 ### Grid search
 
@@ -355,7 +355,7 @@ Since this class inherits from `sklearn.model_selection.RandomizedSearchCV`, it 
 
 Thanks to the additional `eval_dataset` attribute, the resulting plot is already a confusion matrix for the best model after cross-validation which has been used for making predictions on the test data:
 
-![Confusion matrix](images/confusion_matrix.png)
+![Confusion matrix](https://raw.githubusercontent.com/spolivin/rearden/master/images/confusion_matrix.png)
 
 It is also possible to compute all classification metrics using `classif_stats_` attribute that just outputs the result of applying `sklearn.metrics.classification_report` to data contained in `eval_dataset` attribute.
 
